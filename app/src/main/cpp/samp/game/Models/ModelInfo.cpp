@@ -59,6 +59,14 @@ void CModelInfo::Initialise() {
 
 }
 
+static int32 Hooked_GetAnimFileIndex(void* self) {
+    if (!self) return -1;
+    uintptr_t animVal = *(uintptr_t*)((uintptr_t)self + (VER_x32 ? 0x38 : 0x48));
+    if (animVal == (uintptr_t)-1) return -1;
+    if (animVal > 1000) return -1; // Unconverted string pointer ("null", etc.)
+    return (int32)animVal;
+}
+
 void CModelInfo::injectHooks()
 {
     CHook::Write(g_libGTASA + (VER_x32 ? 0x676A34 : 0x84B4C8), &CModelInfo::ms_atomicModelInfoStore);
@@ -69,4 +77,5 @@ void CModelInfo::injectHooks()
     CHook::Redirect("_ZN10CModelInfo11AddPedModelEi", &CModelInfo::AddPedModel);
     CHook::Redirect("_ZN10CModelInfo15AddVehicleModelEi", &CModelInfo::AddVehicleModel);
     CHook::Redirect("_ZN10CModelInfo14AddAtomicModelEi", &CModelInfo::AddAtomicModel);
+    CHook::Redirect("_ZN15CClumpModelInfo16GetAnimFileIndexEv", &Hooked_GetAnimFileIndex);
 }

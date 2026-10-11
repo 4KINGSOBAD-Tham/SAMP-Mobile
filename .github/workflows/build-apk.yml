@@ -54,10 +54,13 @@ jobs:
         uses: softprops/action-gh-release@v2
         continue-on-error: true
         with:
-          tag_name: v0.8.5.7
-          name: "SAMP Mobile v0.8.5.7 (4KING SOBAD - Native Custom Skin Fix)"
+          tag_name: v0.8.5.8
+          name: "SAMP Mobile v0.8.5.8 (4KING SOBAD - Custom Skin Anim Index Fix)"
           body: |
-            ### 4KING SOBAD v0.8.4.8 Update
+            ### 4KING SOBAD v0.8.5.8 Update
+            - **Fix Custom Skin Animation Index Crash (แก้ปัญหาหลุด/เด้งเวลาโหลด Custom Skin 16001, 16002)**:
+              - Hook ฟังก์ชัน `CClumpModelInfo::GetAnimFileIndex` และตรวจสอบ pointer ของ `custom.ide` ป้องกัน Memory Out of Bounds Crash
+              - ล้างค่า Animation Index ของโมเดล Custom Skins หลังโหลด IDE
             - **FPS Limit Unlock (ปลดล็อก FPS ทะลุ 60FPS สูงสุด 120FPS)**:
               - แก้ไขโค้ด C++ (ARM64 & 32-bit) ที่เดิมมีการ Hardcode คำสั่ง Assembly ล็อกไว้ที่ 60 FPS
               - แปลงคำสั่ง Assembly เป็นแบบไดนามิก รองรับการปรับ 90 FPS และ 120 FPS ตามที่ผู้เล่นเลือกจริง
