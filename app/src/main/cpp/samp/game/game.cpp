@@ -94,15 +94,18 @@ void CGame::Initialize()
     snprintf(customIdePath, sizeof(customIdePath), "%sSAMP/custom.ide", g_pszStorage);
     if (access(customIdePath, F_OK) == 0) {
         FLog("[4KING] Auto-loading custom IDE: %s", customIdePath);
+        size_t pedCountBefore = CModelInfo::ms_pedModelInfoStore.m_nCount;
         ((void(*)(const char*))(g_libGTASA + (VER_x32 ? 0x0046717C + 1 : 0x5525ac)))("SAMP/custom.ide");
 
-        // Convert animation file indexes ONLY for peds in ms_pedModelInfoStore
-        for (size_t i = 0; i < CModelInfo::ms_pedModelInfoStore.m_nCount; i++) {
+        // Convert animation file indexes ONLY for newly loaded peds from custom.ide
+        for (size_t i = pedCountBefore; i < CModelInfo::ms_pedModelInfoStore.m_nCount; i++) {
             CPedModelInfo& ped = CModelInfo::ms_pedModelInfoStore.m_aObjects[i];
-            ((void(*)(void*))(g_libGTASA + (VER_x32 ? 0x003855a4 + 1 : 0x45bc40)))(&ped);
             uintptr_t* pAnim = (uintptr_t*)((uintptr_t)&ped + (VER_x32 ? 0x38 : 0x48));
             if (*pAnim > 1000) {
-                *pAnim = (uintptr_t)-1;
+                ((void(*)(void*))(g_libGTASA + (VER_x32 ? 0x003855a4 + 1 : 0x45bc40)))(&ped);
+                if (*pAnim > 1000) {
+                    *pAnim = (uintptr_t)-1;
+                }
             }
         }
     }
