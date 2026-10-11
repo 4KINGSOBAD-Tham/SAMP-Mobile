@@ -1637,6 +1637,19 @@ RwFrame* CClumpModelInfo_GetFrameFromId_hook(RpClump* a1, int a2)
     return CClumpModelInfo_GetFrameFromId_Post(CClumpModelInfo_GetFrameFromId(a1, a2), a1, a2);
 }
 
+void (*CPed__PlayFootSteps)(void* self);
+void CPed__PlayFootSteps_hook(void* self)
+{
+    if (!self) return;
+    RpClump* clump = *(RpClump**)((uintptr_t)self + (VER_x32 ? 0x18 : 0x20));
+    if (!clump) return;
+
+    void* anim = ((void*(*)(RpClump*))(g_libGTASA + (VER_x32 ? 0x0038d958 + 1 : 0x46623c)))(clump);
+    if (!anim) return;
+
+    CPed__PlayFootSteps(self);
+}
+
 void (*CPedModelInfo__CreateHitColModelSkinned)(CPedModelInfo*, RpClump*);
 void CPedModelInfo__CreateHitColModelSkinned_hook(CPedModelInfo* self, RpClump* clump)
 {
@@ -2034,6 +2047,7 @@ void InstallHooks()
     CHook::Redirect("_ZN4CHID12GetInputTypeEv", &GetInputType);
     CHook::Redirect("_Z29GetAnimHierarchyFromSkinClumpP7RpClump", &GetAnimHierarchyFromSkinClump);
     CHook::InlineHook("_ZN13CPedModelInfo24CreateHitColModelSkinnedEP7RpClump", &CPedModelInfo__CreateHitColModelSkinned_hook, &CPedModelInfo__CreateHitColModelSkinned);
+    CHook::InlineHook("_ZN4CPed13PlayFootStepsEv", &CPed__PlayFootSteps_hook, &CPed__PlayFootSteps);
 
 #if VER_x32
     CHook::InlineHook("_ZN14CAnimBlendNode12FindKeyFrameEf", &CAnimBlendNode__FindKeyFrame_hook, &CAnimBlendNode__FindKeyFrame);
