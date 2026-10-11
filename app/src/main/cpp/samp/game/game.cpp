@@ -96,14 +96,13 @@ void CGame::Initialize()
         FLog("[4KING] Auto-loading custom IDE: %s", customIdePath);
         ((void(*)(const char*))(g_libGTASA + (VER_x32 ? 0x0046717C + 1 : 0x5525ac)))("SAMP/custom.ide");
 
-        // Clean up unconverted anim file pointers for custom skins (10000..20000)
-        for (int i = 10000; i < 20000; i++) {
-            CBaseModelInfo* mi = CModelInfo::GetModelInfo(i);
-            if (mi) {
-                uintptr_t* pAnim = (uintptr_t*)((uintptr_t)mi + (VER_x32 ? 0x38 : 0x48));
-                if (*pAnim > 1000) {
-                    *pAnim = (uintptr_t)-1;
-                }
+        // Convert animation file indexes ONLY for peds in ms_pedModelInfoStore
+        for (size_t i = 0; i < CModelInfo::ms_pedModelInfoStore.m_nCount; i++) {
+            CPedModelInfo& ped = CModelInfo::ms_pedModelInfoStore.m_aObjects[i];
+            ((void(*)(void*))(g_libGTASA + (VER_x32 ? 0x003855a4 + 1 : 0x45bc40)))(&ped);
+            uintptr_t* pAnim = (uintptr_t*)((uintptr_t)&ped + (VER_x32 ? 0x38 : 0x48));
+            if (*pAnim > 1000) {
+                *pAnim = (uintptr_t)-1;
             }
         }
     }

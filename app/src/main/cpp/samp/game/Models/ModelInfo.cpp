@@ -59,6 +59,14 @@ void CModelInfo::Initialise() {
 
 }
 
+static int32 Safe_GetAnimFileIndex(void* self) {
+    if (!self) return -1;
+    uintptr_t animVal = *(uintptr_t*)((uintptr_t)self + (VER_x32 ? 0x38 : 0x48));
+    if (animVal == (uintptr_t)-1) return -1;
+    if (animVal > 1000) return -1;
+    return (int32)animVal;
+}
+
 void CModelInfo::injectHooks()
 {
     CHook::Write(g_libGTASA + (VER_x32 ? 0x676A34 : 0x84B4C8), &CModelInfo::ms_atomicModelInfoStore);
@@ -69,4 +77,8 @@ void CModelInfo::injectHooks()
     CHook::Redirect("_ZN10CModelInfo11AddPedModelEi", &CModelInfo::AddPedModel);
     CHook::Redirect("_ZN10CModelInfo15AddVehicleModelEi", &CModelInfo::AddVehicleModel);
     CHook::Redirect("_ZN10CModelInfo14AddAtomicModelEi", &CModelInfo::AddAtomicModel);
+
+    // Patch vtable function pointers directly (safe pointer replacement, no code overwrite)
+    CHook::Write(g_libGTASA + (VER_x32 ? 0x00667560 : 0x82F120), (uintptr_t)&Safe_GetAnimFileIndex); // CClumpModelInfo
+    CHook::Write(g_libGTASA + (VER_x32 ? 0x00667694 : 0x82F388), (uintptr_t)&Safe_GetAnimFileIndex); // CPedModelInfo
 }
