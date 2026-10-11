@@ -3,7 +3,7 @@
 //
 
 #include "RenderWare.h"
-#include "game.h"
+#include "../game.h"
 
 RwObject* GetFirstObjectCallback(RwObject* object, void* data) {
     *(RwObject**)(data) = object;
