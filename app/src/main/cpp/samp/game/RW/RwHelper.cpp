@@ -3,6 +3,7 @@
 //
 
 #include "RenderWare.h"
+#include "game.h"
 
 RwObject* GetFirstObjectCallback(RwObject* object, void* data) {
     *(RwObject**)(data) = object;
@@ -26,18 +27,25 @@ RpAtomic* GetFirstAtomicCallback(RpAtomic* atomic, void* data) {
     return nullptr;
 }
 
-RpHAnimHierarchy* GetAnimHierarchyFromSkinClump(RpClump* clump) {
-    if(clump) {
-        RpHAnimHierarchy *anim{};
-        RpClumpForAllAtomics(clump, SkinAtomicGetHAnimHierarchCB, &anim);
-        return anim;
-    }
-}
-
 // name not from Android
 RpAtomic* SkinAtomicGetHAnimHierarchCB(RpAtomic* atomic, void* data) {
-    *(RpHAnimHierarchy**)(data) = RpSkinAtomicGetHAnimHierarchy(atomic);
-    return nullptr;
+    RpHAnimHierarchy* hier = RpSkinAtomicGetHAnimHierarchy(atomic);
+    if (hier) {
+        *(RpHAnimHierarchy**)(data) = hier;
+        return nullptr; // Found skin hierarchy! Stop enumeration.
+    }
+    return atomic; // Continue checking next atomic
+}
+
+RpHAnimHierarchy* GetAnimHierarchyFromSkinClump(RpClump* clump) {
+    if (!clump) return nullptr;
+    RpHAnimHierarchy *anim{};
+    RpClumpForAllAtomics(clump, SkinAtomicGetHAnimHierarchCB, &anim);
+    if (!anim) {
+        // Fallback: check clump hierarchy from frames if not on first atomic
+        anim = ((RpHAnimHierarchy*(*)(RpClump*))(g_libGTASA + (VER_x32 ? 0x005D10D0 + 1 : 0x6F55D4)))(clump);
+    }
+    return anim;
 }
 
 RpAtomic* AtomicRemoveAnimFromSkinCB(RpAtomic* atomic, void* data) {

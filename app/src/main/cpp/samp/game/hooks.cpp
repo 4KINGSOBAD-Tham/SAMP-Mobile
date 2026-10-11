@@ -1636,6 +1636,27 @@ RwFrame* CClumpModelInfo_GetFrameFromId_hook(RpClump* a1, int a2)
     return CClumpModelInfo_GetFrameFromId_Post(CClumpModelInfo_GetFrameFromId(a1, a2), a1, a2);
 }
 
+void (*CPedModelInfo__CreateHitColModelSkinned)(CPedModelInfo*, RpClump*);
+void CPedModelInfo__CreateHitColModelSkinned_hook(CPedModelInfo* self, RpClump* clump)
+{
+    if (!self || !clump) return;
+
+    RpHAnimHierarchy* hier = GetAnimHierarchyFromSkinClump(clump);
+    if (!hier) {
+        FLog("[4KING] Clump has no RpHAnimHierarchy, borrowing fallback hit col model");
+        for (size_t i = 0; i < CModelInfo::ms_pedModelInfoStore.m_nCount; i++) {
+            CPedModelInfo& p = CModelInfo::ms_pedModelInfoStore.m_aObjects[i];
+            if (p.m_pHitColModel && &p != self) {
+                self->m_pHitColModel = p.m_pHitColModel;
+                return;
+            }
+        }
+        return;
+    }
+
+    CPedModelInfo__CreateHitColModelSkinned(self, clump);
+}
+
 void (*FxEmitterBP_c__Render)(uintptr_t* a1, int a2, int a3, float a4, char a5);
 void FxEmitterBP_c__Render_hook(uintptr_t* a1, int a2, int a3, float a4, char a5)
 {
@@ -2010,6 +2031,8 @@ void InstallHooks()
     }
 
     CHook::Redirect("_ZN4CHID12GetInputTypeEv", &GetInputType);
+    CHook::Redirect("_Z29GetAnimHierarchyFromSkinClumpP7RpClump", &GetAnimHierarchyFromSkinClump);
+    CHook::InlineHook("_ZN13CPedModelInfo24CreateHitColModelSkinnedEP7RpClump", &CPedModelInfo__CreateHitColModelSkinned_hook, &CPedModelInfo__CreateHitColModelSkinned);
 
 #if VER_x32
     CHook::InlineHook("_ZN14CAnimBlendNode12FindKeyFrameEf", &CAnimBlendNode__FindKeyFrame_hook, &CAnimBlendNode__FindKeyFrame);
