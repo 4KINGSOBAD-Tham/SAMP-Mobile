@@ -20,6 +20,7 @@ extern int iNetModeFiringSendRate;
 extern int iNetModeSendMultiplier;
 
 bool m_bWasInCar = false;
+static uint32_t s_dwDeathTick = 0;
 
 extern bool bUsedPlayerSlots[];
 
@@ -120,6 +121,7 @@ bool CLocalPlayer::Process()
 			SendWastedNotification();
 			m_bIsActive = false;
 			m_bIsWasted = true;
+			s_dwDeathTick = GetTickCount();
 			pGame->EnableZoneNames(false);
 			return true;
 		}
@@ -391,10 +393,11 @@ bool CLocalPlayer::Process()
 
 	// HANDLE NEEDS TO RESPAWN AFTER DEATH
 	if (m_bIsWasted
-		&& m_pPlayerPed->GetActionTrigger() != ACTION_WASTED
-		&& m_pPlayerPed->GetActionTrigger() != ACTION_DEATH)
+		&& ((s_dwDeathTick != 0 && GetTickCount() - s_dwDeathTick > 3000) ||
+		   (m_pPlayerPed->GetActionTrigger() != ACTION_WASTED && m_pPlayerPed->GetActionTrigger() != ACTION_DEATH)))
 	{
         m_pPlayerPed->FlushAttach();
+        s_dwDeathTick = 0;
 
 		//if (sub_100AC660(_this->m_pPlayerPed))
 		//	sub_100AC670(_this->m_pPlayerPed, 0);
@@ -623,6 +626,13 @@ bool CLocalPlayer::Spawn()
 	m_pPlayerPed->ClearWeapons();
 	m_pPlayerPed->ResetDamageEntity();
 
+	if (m_pPlayerPed && m_pPlayerPed->m_pPed) {
+		m_pPlayerPed->m_pPed->m_nPedState = PEDSTATE_IDLE;
+		m_pPlayerPed->m_pPed->bIsPedDieAnimPlaying = false;
+		m_pPlayerPed->m_pPed->bIsDyingStuck = false;
+		m_pPlayerPed->SetHealth(100.0f);
+	}
+
 	//ApplySpecialAction(0);
 
 	//_this->field_2DE = 0;
@@ -667,6 +677,11 @@ void CLocalPlayer::HandleClassSelection()
 	m_bClearedToSpawn = false;
 	if (m_pPlayerPed) {
 		m_pPlayerPed->SetInitialState();
+		if (m_pPlayerPed->m_pPed) {
+			m_pPlayerPed->m_pPed->m_nPedState = PEDSTATE_IDLE;
+			m_pPlayerPed->m_pPed->bIsPedDieAnimPlaying = false;
+			m_pPlayerPed->m_pPed->bIsDyingStuck = false;
+		}
 		m_pPlayerPed->SetHealth(100.0f);
 		m_pPlayerPed->TogglePlayerControllable(false);
 	}
