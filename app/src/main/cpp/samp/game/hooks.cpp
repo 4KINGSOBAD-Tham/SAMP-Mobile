@@ -1399,6 +1399,11 @@ stFile* NvFOpen(const char* r0, const char* r1, int r2, int r3)
         sprintf(path, "%sSAMP/peds.ide", g_pszStorage);
         FLog("Loading peds.ide..");
     }
+    else if(!strncasecmp(r1, "DATA/CUSTOM.IDE", 15) || !strncasecmp(r1, "SAMP/CUSTOM.IDE", 15) || !strncasecmp(r1, "CUSTOM.IDE", 10))
+    {
+        sprintf(path, "%sSAMP/custom.ide", g_pszStorage);
+        FLog("Loading custom.ide..");
+    }
     // ----------------------------
     else if(!strncmp(r1, "DATA/VEHICLES.IDE", 17))
     {

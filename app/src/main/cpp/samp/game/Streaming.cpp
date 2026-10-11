@@ -257,7 +257,7 @@ void CStreaming::InitImageList() {
 #if VER_SAMP
     CStreaming::AddImageToList("TEXDB\\GTA3.IMG", true);
     CStreaming::AddImageToList("TEXDB\\GTA_INT.IMG", true);
-//    CStreaming::AddImageToList("TEXDB\\SAMP.IMG", true);
+    CStreaming::AddImageToList("TEXDB\\SAMP.IMG", true);
 //    CStreaming::AddImageToList("TEXDB\\SAMPCOL.IMG", true);
 #else
     CStreaming::AddImageToList("TEXDB\\GTA3.IMG", true);

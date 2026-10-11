@@ -88,6 +88,14 @@ void CGame::Initialize()
 	GameResetRadarColors();
 
     szGameTextMessage = new uint16_t[1076];
+
+    // [4KING] Auto-load custom.ide (PC compatibility for skins like 16001/16002)
+    char customIdePath[512];
+    snprintf(customIdePath, sizeof(customIdePath), "%sSAMP/custom.ide", g_pszStorage);
+    if (access(customIdePath, F_OK) == 0) {
+        FLog("[4KING] Auto-loading custom IDE: %s", customIdePath);
+        ((void(*)(const char*))(g_libGTASA + (VER_x32 ? 0x0044B200 + 1 : 0x5525ac)))("SAMP/custom.ide");
+    }
 }
 // 0.3.7
 void CGame::SetMaxStats()
