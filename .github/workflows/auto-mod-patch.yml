@@ -1,0 +1,61 @@
+name: Auto Package Mod Patch
+
+on:
+  push:
+    paths:
+      - 'patch_files/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package-patch:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Create Patch ZIP
+        run: |
+          mkdir -p build_patch/GTA
+          cp -r patch_files/* build_patch/GTA/ || true
+          cd build_patch
+          zip -r ../patch.zip GTA
+          cd ..
+          ls -lh patch.zip
+
+      - name: Update security.json version
+        id: update_sec
+        run: |
+          node -e "
+          const fs = require('fs');
+          const sec = JSON.parse(fs.readFileSync('security.json', 'utf8'));
+          if (!sec.mod_patch) sec.mod_patch = {};
+          sec.mod_patch.version = (sec.mod_patch.version || 1) + 1;
+          sec.mod_patch.required = true;
+          sec.mod_patch.description = 'อัปเดตม็อดเวอร์ชัน ' + sec.mod_patch.version;
+          fs.writeFileSync('security.json', JSON.stringify(sec, null, 2), 'utf8');
+          console.log('New mod version:', sec.mod_patch.version);
+          "
+
+      - name: Upload patch.zip to Release
+        uses: softprops/action-gh-release@v2
+        continue-on-error: true
+        with:
+          tag_name: v1.0.0
+          files: patch.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Commit and Push updated security.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add security.json
+          git commit -m "chore(patch): auto bump mod patch version [skip ci]" || true
+          git push origin main
