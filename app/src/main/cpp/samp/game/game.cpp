@@ -80,6 +80,300 @@ void CGame::StartGame()
 void InstallSAMPHooks();
 void InstallWidgetHooks();
 
+
+#include <vector>
+
+void BindCustomSkinsFromImg(const char* customIdePath) {
+    FLog("[4KING] Starting BindCustomSkinsFromImg (custom.ide: %s)...", customIdePath ? customIdePath : "null");
+
+    if (!customIdePath || access(customIdePath, F_OK) != 0) {
+        FLog("[4KING] custom.ide not accessible");
+        return;
+    }
+
+    struct CustomPedDef {
+        int id;
+        std::string modelName;
+        std::string txdName;
+    };
+    std::vector<CustomPedDef> customPeds;
+
+    FILE* fIde = fopen(customIdePath, "r");
+    if (fIde) {
+        char line[512];
+        bool inPedsSection = false;
+        while (fgets(line, sizeof(line), fIde)) {
+            char* p = line;
+            while (*p == ' ' || *p == '\t') p++;
+            if (*p == '#' || *p == '\r' || *p == '\n' || *p == '\0') continue;
+
+            if (!strncasecmp(p, "peds", 4)) {
+                inPedsSection = true;
+                continue;
+            }
+            if (!strncasecmp(p, "end", 3)) {
+                inPedsSection = false;
+                continue;
+            }
+
+            if (inPedsSection) {
+                int id = 0;
+                char model[32] = {0};
+                char txd[32] = {0};
+                char* token = strtok(p, ",\t\r\n ");
+                if (token) id = atoi(token);
+                token = strtok(nullptr, ",\t\r\n ");
+                if (token) strncpy(model, token, sizeof(model) - 1);
+                token = strtok(nullptr, ",\t\r\n ");
+                if (token) strncpy(txd, token, sizeof(txd) - 1);
+
+                if (id > 0 && model[0]) {
+                    customPeds.push_back({id, std::string(model), std::string(txd[0] ? txd : model)});
+                    FLog("[4KING] custom.ide entry: id=%d, model='%s', txd='%s'", id, model, txd[0] ? txd : model);
+                }
+            }
+        }
+        fclose(fIde);
+    }
+
+    // Locate custom IMG file
+    const char* imgCandidates[] = {
+        "texdb/samp.img",
+        "TEXDB/samp.img",
+        "TEXDB/SAMP.IMG",
+        "texdb/SAMP.IMG",
+        "SAMP/samp.img",
+        "SAMP/SAMP.IMG",
+        "SAMP/custom.img",
+        "custom.img"
+    };
+
+    char imgFullPath[512] = {0};
+    const char* imgRelName = nullptr;
+    for (const char* cand : imgCandidates) {
+        char testPath[512];
+        snprintf(testPath, sizeof(testPath), "%s%s", g_pszStorage, cand);
+        if (access(testPath, F_OK) == 0) {
+            strncpy(imgFullPath, testPath, sizeof(imgFullPath) - 1);
+            imgRelName = cand;
+            FLog("[4KING] Found custom IMG at: %s", imgFullPath);
+            break;
+        }
+    }
+
+    if (!imgFullPath[0]) {
+        FLog("[4KING] Warning: No custom IMG file found!");
+        return;
+    }
+
+    // Find or assign slot in CStreaming::ms_files
+    int imgIndex = -1;
+    for (int i = 0; i < TOTAL_IMG_ARCHIVES; i++) {
+        if (CStreaming::ms_files[i].m_szName[0]) {
+            if (strcasestr(CStreaming::ms_files[i].m_szName, "samp.img") ||
+                strcasestr(CStreaming::ms_files[i].m_szName, "custom.img")) {
+                imgIndex = i;
+                break;
+            }
+        }
+    }
+
+    if (imgIndex == -1) {
+        for (int i = 0; i < TOTAL_IMG_ARCHIVES; i++) {
+            if (!CStreaming::ms_files[i].m_szName[0]) {
+                imgIndex = i;
+                break;
+            }
+        }
+        if (imgIndex == -1) imgIndex = 2; // fallback to slot 2 (SAMP.IMG slot)
+    }
+
+    // Ensure StreamHandle is open
+    if (CStreaming::ms_files[imgIndex].m_StreamHandle == 0) {
+        char cdOpenName[128];
+        snprintf(cdOpenName, sizeof(cdOpenName), "TEXDB/%s", strrchr(imgRelName, '/') ? strrchr(imgRelName, '/') + 1 : imgRelName);
+        int32 handle = CdStreamOpen(imgRelName);
+        if (handle == 0) handle = CdStreamOpen(cdOpenName);
+        if (handle == 0) handle = CdStreamOpen(imgFullPath);
+        CStreaming::ms_files[imgIndex].m_StreamHandle = handle;
+        strncpy(CStreaming::ms_files[imgIndex].m_szName, imgRelName, sizeof(CStreaming::ms_files[imgIndex].m_szName) - 1);
+        CStreaming::ms_files[imgIndex].m_bNotPlayerImg = true;
+        FLog("[4KING] Opened CdStream for %s -> slot %d, handle=0x%X", imgRelName, imgIndex, handle);
+    } else {
+        FLog("[4KING] Using existing CdStream in slot %d, handle=0x%X", imgIndex, CStreaming::ms_files[imgIndex].m_StreamHandle);
+    }
+
+    // Read IMG directory
+    FILE* fImg = fopen(imgFullPath, "rb");
+    if (!fImg) {
+        FLog("[4KING] Error: Cannot open IMG file %s", imgFullPath);
+        return;
+    }
+
+    char magic[4];
+    uint32_t numEntries = 0;
+    if (fread(magic, 1, 4, fImg) != 4 || memcmp(magic, "VER2", 4) != 0) {
+        FLog("[4KING] Invalid IMG header: %.4s", magic);
+        fclose(fImg);
+        return;
+    }
+    if (fread(&numEntries, sizeof(uint32_t), 1, fImg) != 1) {
+        fclose(fImg);
+        return;
+    }
+
+    FLog("[4KING] Processing %u entries in %s...", numEntries, imgFullPath);
+
+#pragma pack(push, 1)
+    struct ImgEntry {
+        uint32_t offset;
+        uint16_t size;
+        uint16_t size2;
+        char name[24];
+    };
+#pragma pack(pop)
+
+    std::vector<ImgEntry> entries(numEntries);
+    if (fread(entries.data(), sizeof(ImgEntry), numEntries, fImg) != numEntries) {
+        FLog("[4KING] Failed to read all entries from IMG");
+        fclose(fImg);
+        return;
+    }
+    fclose(fImg);
+
+    // Bind custom.ide entries
+    for (const auto& ped : customPeds) {
+        char expectedDff1[32];
+        char expectedDff2[32];
+        char expectedTxd1[32];
+        char expectedTxd2[32];
+
+        snprintf(expectedDff1, sizeof(expectedDff1), "%s.dff", ped.modelName.c_str());
+        snprintf(expectedDff2, sizeof(expectedDff2), "%d.dff", ped.id);
+        snprintf(expectedTxd1, sizeof(expectedTxd1), "%s.txd", ped.txdName.c_str());
+        snprintf(expectedTxd2, sizeof(expectedTxd2), "%d.txd", ped.id);
+
+        const ImgEntry* pDffEntry = nullptr;
+        const ImgEntry* pTxdEntry = nullptr;
+
+        for (const auto& ent : entries) {
+            if (!pDffEntry) {
+                if (!strcasecmp(ent.name, expectedDff1) || !strcasecmp(ent.name, expectedDff2)) {
+                    pDffEntry = &ent;
+                }
+            }
+            if (!pTxdEntry) {
+                if (!strcasecmp(ent.name, expectedTxd1) || !strcasecmp(ent.name, expectedTxd2)) {
+                    pTxdEntry = &ent;
+                }
+            }
+            if (pDffEntry && pTxdEntry) break;
+        }
+
+        // Rebind DFF
+        if (pDffEntry) {
+            if (ped.id >= 0 && ped.id < RESOURCE_ID_TOTAL) {
+                if (CStreaming::ms_aInfoForModel[ped.id].m_nLoadState == LOADSTATE_LOADED) {
+                    CStreaming::RemoveModel(ped.id);
+                }
+                CStreamingInfo& info = CStreaming::ms_aInfoForModel[ped.id];
+                info.m_nImgId = imgIndex;
+                info.m_nCdPosn = pDffEntry->offset;
+                info.m_nCdSize = pDffEntry->size;
+                info.m_nLoadState = LOADSTATE_NOT_LOADED;
+                info.m_nFlags = 0;
+                info.m_nNextIndex = -1;
+                info.m_nPrevIndex = -1;
+                info.m_nNextIndexOnCd = -1;
+
+                FLog("[4KING] >>> BOUND DFF: ID %d ('%s') -> %s in %s (offset: %u, size: %u, imgId: %d)",
+                     ped.id, ped.modelName.c_str(), pDffEntry->name, imgRelName, pDffEntry->offset, pDffEntry->size, imgIndex);
+            }
+        } else {
+            FLog("[4KING] >>> WARNING: DFF not found in IMG for ID %d (tried '%s', '%s')",
+                 ped.id, expectedDff1, expectedDff2);
+        }
+
+        // Rebind TXD
+        if (pTxdEntry) {
+            int txdSlot = CTxdStore::FindTxdSlot(ped.txdName.c_str());
+            if (txdSlot == -1) {
+                txdSlot = CTxdStore::AddTxdSlot(ped.txdName.c_str(), nullptr, false);
+            }
+            if (txdSlot == -1) {
+                char numTxd[32];
+                snprintf(numTxd, sizeof(numTxd), "%d", ped.id);
+                txdSlot = CTxdStore::FindTxdSlot(numTxd);
+                if (txdSlot == -1) {
+                    txdSlot = CTxdStore::AddTxdSlot(numTxd, nullptr, false);
+                }
+            }
+
+            if (txdSlot != -1) {
+                int txdResourceId = RESOURCE_ID_TXD + txdSlot;
+                if (txdResourceId < RESOURCE_ID_TOTAL) {
+                    if (CStreaming::ms_aInfoForModel[txdResourceId].m_nLoadState == LOADSTATE_LOADED) {
+                        CStreaming::RemoveModel(txdResourceId);
+                    }
+                    CStreamingInfo& txdInfo = CStreaming::ms_aInfoForModel[txdResourceId];
+                    txdInfo.m_nImgId = imgIndex;
+                    txdInfo.m_nCdPosn = pTxdEntry->offset;
+                    txdInfo.m_nCdSize = pTxdEntry->size;
+                    txdInfo.m_nLoadState = LOADSTATE_NOT_LOADED;
+                    txdInfo.m_nFlags = 0;
+                    txdInfo.m_nNextIndex = -1;
+                    txdInfo.m_nPrevIndex = -1;
+                    txdInfo.m_nNextIndexOnCd = -1;
+
+                    CBaseModelInfo* pModel = CModelInfo::GetModelInfo(ped.id);
+                    if (pModel) {
+                        pModel->m_nTxdIndex = txdSlot;
+                    }
+
+                    FLog("[4KING] >>> BOUND TXD: ID %d ('%s') -> %s in %s (slot: %d, resource: %d, offset: %u, size: %u)",
+                         ped.id, ped.txdName.c_str(), pTxdEntry->name, imgRelName, txdSlot, txdResourceId, pTxdEntry->offset, pTxdEntry->size);
+                }
+            } else {
+                FLog("[4KING] >>> ERROR: Failed to allocate TXD slot for '%s'", ped.txdName.c_str());
+            }
+        } else {
+            FLog("[4KING] >>> WARNING: TXD not found in IMG for ID %d (tried '%s', '%s')",
+                 ped.id, expectedTxd1, expectedTxd2);
+        }
+    }
+
+    // Auto-bind any numerical models in IMG
+    for (const auto& ent : entries) {
+        size_t len = strlen(ent.name);
+        if (len > 4 && !strcasecmp(ent.name + len - 4, ".dff")) {
+            char base[24];
+            strncpy(base, ent.name, len - 4);
+            base[len - 4] = '\0';
+            int id = atoi(base);
+            if (id >= 10000 && id < 20000) {
+                if (CStreaming::ms_aInfoForModel[id].m_nImgId != imgIndex) {
+                    if (CStreaming::ms_aInfoForModel[id].m_nLoadState == LOADSTATE_LOADED) {
+                        CStreaming::RemoveModel(id);
+                    }
+                    CStreamingInfo& info = CStreaming::ms_aInfoForModel[id];
+                    info.m_nImgId = imgIndex;
+                    info.m_nCdPosn = ent.offset;
+                    info.m_nCdSize = ent.size;
+                    info.m_nLoadState = LOADSTATE_NOT_LOADED;
+                    info.m_nFlags = 0;
+                    info.m_nNextIndex = -1;
+                    info.m_nPrevIndex = -1;
+                    info.m_nNextIndexOnCd = -1;
+                    FLog("[4KING] >>> AUTO-BOUND Numeric DFF: ID %d -> %s (offset: %u, size: %u)",
+                         id, ent.name, ent.offset, ent.size);
+                }
+            }
+        }
+    }
+
+    FLog("[4KING] BindCustomSkinsFromImg finished successfully!");
+}
+
 void CGame::Initialize()
 {
 	FLog("CGame initializing..");
@@ -92,6 +386,9 @@ void CGame::Initialize()
     // [4KING] Auto-load custom.ide (PC compatibility for skins like 16001/16002)
     char customIdePath[512];
     snprintf(customIdePath, sizeof(customIdePath), "%sSAMP/custom.ide", g_pszStorage);
+    if (access(customIdePath, F_OK) != 0) {
+        snprintf(customIdePath, sizeof(customIdePath), "%scustom.ide", g_pszStorage);
+    }
     if (access(customIdePath, F_OK) == 0) {
         FLog("[4KING] Auto-loading custom IDE: %s", customIdePath);
         size_t pedCountBefore = CModelInfo::ms_pedModelInfoStore.m_nCount;
@@ -108,6 +405,9 @@ void CGame::Initialize()
                 }
             }
         }
+
+        // [4KING] Rebind models in CStreaming to point to custom DFF/TXD in samp.img
+        BindCustomSkinsFromImg(customIdePath);
     }
 }
 // 0.3.7

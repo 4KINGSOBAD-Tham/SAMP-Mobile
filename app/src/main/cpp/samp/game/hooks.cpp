@@ -1447,6 +1447,21 @@ stFile* NvFOpen(const char* r0, const char* r1, int r2, int r3)
         FLog("Loading popcycle.dat..");
     }
 
+    // Normalize slashes
+    for (char* p = path; *p; ++p) {
+        if (*p == '\\') *p = '/';
+    }
+
+    // Normalize slashes
+    for (char* p = path; *p; ++p) {
+        if (*p == '\\') *p = '/';
+    }
+
+    // Normalize slashes
+    for (char* p = path; *p; ++p) {
+        if (*p == '\\') *p = '/';
+    }
+
     FILE *f  = fopen(path, "rb");
 
     if (!f) {
