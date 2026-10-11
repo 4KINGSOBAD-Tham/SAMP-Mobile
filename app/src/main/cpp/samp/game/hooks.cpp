@@ -1650,6 +1650,24 @@ void CPed__PlayFootSteps_hook(void* self)
     CPed__PlayFootSteps(self);
 }
 
+void (*CPedModelInfo__AnimatePedColModelSkinnedWorld)(CPedModelInfo*, RpClump*);
+void CPedModelInfo__AnimatePedColModelSkinnedWorld_hook(CPedModelInfo* self, RpClump* clump)
+{
+    if (!self || !clump) return;
+    RpHAnimHierarchy* hier = GetAnimHierarchyFromSkinClump(clump);
+    if (!hier) return; // Custom skin has no skeleton hierarchy, skip world anim safely
+    CPedModelInfo__AnimatePedColModelSkinnedWorld(self, clump);
+}
+
+void (*CPedModelInfo__AnimatePedColModelSkinned)(CPedModelInfo*, RpClump*);
+void CPedModelInfo__AnimatePedColModelSkinned_hook(CPedModelInfo* self, RpClump* clump)
+{
+    if (!self || !clump) return;
+    RpHAnimHierarchy* hier = GetAnimHierarchyFromSkinClump(clump);
+    if (!hier) return; // Custom skin has no skeleton hierarchy, skip anim safely
+    CPedModelInfo__AnimatePedColModelSkinned(self, clump);
+}
+
 void (*CPedModelInfo__CreateHitColModelSkinned)(CPedModelInfo*, RpClump*);
 void CPedModelInfo__CreateHitColModelSkinned_hook(CPedModelInfo* self, RpClump* clump)
 {
@@ -2048,6 +2066,8 @@ void InstallHooks()
     CHook::Redirect("_Z29GetAnimHierarchyFromSkinClumpP7RpClump", &GetAnimHierarchyFromSkinClump);
     CHook::InlineHook("_ZN13CPedModelInfo24CreateHitColModelSkinnedEP7RpClump", &CPedModelInfo__CreateHitColModelSkinned_hook, &CPedModelInfo__CreateHitColModelSkinned);
     CHook::InlineHook("_ZN4CPed13PlayFootStepsEv", &CPed__PlayFootSteps_hook, &CPed__PlayFootSteps);
+    CHook::InlineHook("_ZN13CPedModelInfo30AnimatePedColModelSkinnedWorldEP7RpClump", &CPedModelInfo__AnimatePedColModelSkinnedWorld_hook, &CPedModelInfo__AnimatePedColModelSkinnedWorld);
+    CHook::InlineHook("_ZN13CPedModelInfo25AnimatePedColModelSkinnedEP7RpClump", &CPedModelInfo__AnimatePedColModelSkinned_hook, &CPedModelInfo__AnimatePedColModelSkinned);
 
 #if VER_x32
     CHook::InlineHook("_ZN14CAnimBlendNode12FindKeyFrameEf", &CAnimBlendNode__FindKeyFrame_hook, &CAnimBlendNode__FindKeyFrame);

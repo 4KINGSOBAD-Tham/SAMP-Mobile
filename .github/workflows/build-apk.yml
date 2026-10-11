@@ -54,10 +54,10 @@ jobs:
         uses: softprops/action-gh-release@v2
         continue-on-error: true
         with:
-          tag_name: v0.8.6.2
-          name: "SAMP Mobile v0.8.6.2 (4KING SOBAD - PlayFootSteps Null Safety Fix)"
+          tag_name: v0.8.6.3
+          name: "SAMP Mobile v0.8.6.3 (4KING SOBAD - Full Camera & Skeleton Col Protection)"
           body: |
-            ### 4KING SOBAD v0.8.6.2 Update
+            ### 4KING SOBAD v0.8.6.3 Update
             - **Fix Custom Skin Animation Index Crash (แก้ปัญหาหลุด/เด้งเวลาโหลด Custom Skin 16001, 16002)**:
               - Hook ฟังก์ชัน `CClumpModelInfo::GetAnimFileIndex` และตรวจสอบ pointer ของ `custom.ide` ป้องกัน Memory Out of Bounds Crash
               - ล้างค่า Animation Index ของโมเดล Custom Skins หลังโหลด IDE
