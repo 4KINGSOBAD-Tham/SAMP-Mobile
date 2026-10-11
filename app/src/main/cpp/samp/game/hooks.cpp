@@ -28,6 +28,7 @@
 #include "game/Animation/AnimManager.h"
 #include "FileLoader.h"
 #include "Renderer.h"
+#include "RW/RwHelper.h"
 #include "CrossHair.h"
 #include "World.h"
 #include "Widgets/TouchInterface.h"
