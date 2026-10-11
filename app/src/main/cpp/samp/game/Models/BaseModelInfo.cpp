@@ -10,10 +10,12 @@ void CBaseModelInfo::SetTexDictionary(const char* txdName, const char *dbName) {
 }
 
 ModelInfoType CBaseModelInfo::GetModelType() {
+    if (!this || !vtable) return (ModelInfoType)0;
     return CHook::CallFunction<ModelInfoType>(*(uintptr_t*)(vtable + (VER_x32 ? 0x14 : 0x14*2)), this);
 }
 
 int32 CBaseModelInfo::GetAnimFileIndex() {
+    if (!this || !vtable) return -1;
     return CHook::CallFunction<int32>(*(uintptr_t*)(vtable + (VER_x32 ? 0x3C : 0x3C*2)), this);
 }
 

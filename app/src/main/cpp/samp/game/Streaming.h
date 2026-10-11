@@ -239,8 +239,22 @@ public:
     static void FlushChannels();
 
     // Inlined or NOTSA
-    static bool IsModelLoaded(int32 model) { return ms_aInfoForModel[model].m_nLoadState == eStreamingLoadState::LOADSTATE_LOADED; }
-    static CStreamingInfo& GetInfo(int32 modelId) { assert(modelId >= 0); return ms_aInfoForModel[modelId]; }
+    static bool IsModelLoaded(int32 model) {
+        if (model < 0 || model >= RESOURCE_ID_TOTAL) return false;
+        CStreamingInfo* pBase = *(CStreamingInfo**)(g_libGTASA + (VER_x32 ? 0x712330 : 0x8f2178));
+        if (pBase) {
+            return pBase[model].m_nLoadState == eStreamingLoadState::LOADSTATE_LOADED;
+        }
+        return ms_aInfoForModel[model].m_nLoadState == eStreamingLoadState::LOADSTATE_LOADED;
+    }
+    static CStreamingInfo& GetInfo(int32 modelId) {
+        assert(modelId >= 0);
+        CStreamingInfo* pBase = *(CStreamingInfo**)(g_libGTASA + (VER_x32 ? 0x712330 : 0x8f2178));
+        if (pBase && modelId >= 0 && modelId < RESOURCE_ID_TOTAL) {
+            return pBase[modelId];
+        }
+        return ms_aInfoForModel[modelId];
+    }
     static bool IsRequestListEmpty() { return ms_pEndRequestedList->GetPrev() == ms_pStartRequestedList; }
     static ptrdiff_t GetModelFromInfo(const CStreamingInfo* info) { return info - CStreaming::ms_aInfoForModel; }
     static void RemoveModelIfNoRefs(int32 modelId);

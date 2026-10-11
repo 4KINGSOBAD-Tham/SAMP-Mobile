@@ -32,10 +32,31 @@ public:
     static CDamageAtomicModelInfo* AddDamageAtomicModel(int32 index);
     static CVehicleModelInfo *AddVehicleModel(int index);
 
-    static CBaseModelInfo* GetModelInfo(int index) { return ms_modelInfoPtrs[index]; }
-    static auto GetPedModelInfo(int32_t index) { return GetModelInfo(index)->AsPedModelInfoPtr(); }
-    static auto GetVehicleModelInfo(int32_t index) { return GetModelInfo(index)->AsVehicleModelInfoPtr(); }
-    static void SetModelInfo(int index, CBaseModelInfo* pInfo) { ms_modelInfoPtrs[index] = pInfo; }
+    static CBaseModelInfo* GetModelInfo(int index) {
+        if (index >= 0 && index < NUM_MODEL_INFOS && ms_modelInfoPtrs[index]) {
+            return ms_modelInfoPtrs[index];
+        }
+        if (!VER_x32 && index >= 0 && index < 20000) {
+            return ((CBaseModelInfo**)(g_libGTASA + 0xb666e0))[index];
+        }
+        return nullptr;
+    }
+    static auto GetPedModelInfo(int32_t index) {
+        CBaseModelInfo* p = GetModelInfo(index);
+        return p ? p->AsPedModelInfoPtr() : nullptr;
+    }
+    static auto GetVehicleModelInfo(int32_t index) {
+        CBaseModelInfo* p = GetModelInfo(index);
+        return p ? p->AsVehicleModelInfoPtr() : nullptr;
+    }
+    static void SetModelInfo(int index, CBaseModelInfo* pInfo) {
+        if (index >= 0 && index < NUM_MODEL_INFOS) {
+            ms_modelInfoPtrs[index] = pInfo;
+        }
+        if (!VER_x32 && index >= 0 && index < 20000) {
+            *(CBaseModelInfo**)(g_libGTASA + 0xb666e0 + index * sizeof(uintptr_t)) = pInfo;
+        }
+    }
 
     static void Initialise();
 };

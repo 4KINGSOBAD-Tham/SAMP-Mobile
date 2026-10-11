@@ -23,19 +23,26 @@ extern UI *pUI;
 
 bool CStreaming::TryLoadModel(int modelId) {
     FLog("TryLoadModel %d", modelId);
-    if(!CStreaming::GetInfo(modelId).IsLoaded()) {
+    if (modelId < 0 || modelId >= RESOURCE_ID_TOTAL) {
+        FLog("[CStreaming::TryLoadModel] Invalid modelId: %d", modelId);
+        return false;
+    }
+    if(!CStreaming::IsModelLoaded(modelId)) {
         FLog("TryLoadModel 1");
         CStreaming::RequestModel(modelId, STREAMING_GAME_REQUIRED | STREAMING_KEEP_IN_MEMORY);
         FLog("TryLoadModel 11");
         CStreaming::LoadAllRequestedModels(false);
         FLog("TryLoadModel 2");
         uint32 count = 0;
-        while (!CStreaming::GetInfo(modelId).IsLoaded()) {
+        while (!CStreaming::IsModelLoaded(modelId)) {
             count++;
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
             if (count > 30) {
-                pUI->chat()->addDebugMessage("{ff0000} Error loading model %d", modelId);
+                FLog("[CStreaming::TryLoadModel] Timeout waiting for model %d", modelId);
+                if (pUI && pUI->chat()) {
+                    pUI->chat()->addDebugMessage("{ff0000} Error loading model %d", modelId);
+                }
                 return false;
             }
         }
@@ -268,84 +275,9 @@ void CStreaming::InitImageList() {
 }
 
 // Request a given model to be loaded.
-// Can be called on an already requested model to add `PRIORITY_REQUEST` flag
 void CStreaming::RequestModel(int32 modelId, int32 streamingFlags) {
-    CStreamingInfo& info = GetInfo(modelId);
-
-    switch (info.m_nLoadState) {
-        case eStreamingLoadState::LOADSTATE_NOT_LOADED:
-            break;
-
-        case eStreamingLoadState::LOADSTATE_REQUESTED: {
-            // Model already requested, just set priority request flag if not set already
-            if ((streamingFlags & STREAMING_PRIORITY_REQUEST) && !info.IsPriorityRequest())
-            {
-                ++ms_numPriorityRequests;
-                info.SetFlags(STREAMING_PRIORITY_REQUEST);
-            }
-            break;
-        }
-
-        default: {
-            streamingFlags &= ~STREAMING_PRIORITY_REQUEST; // Remove flag otherwise
-            break;
-        }
-    }
-    info.SetFlags(streamingFlags);
-
-    // BUG: Possibly? If the model was requested once with `PRIORITY_REQUEST` set
-    //      and later is requested without it `ms_numPriorityRequests` won't be decreased.
-
-    switch (info.m_nLoadState) {
-        case eStreamingLoadState::LOADSTATE_LOADED: {
-            if (info.InList()) {
-                info.RemoveFromList();
-                if (IsModelDFF(modelId)) {
-                    switch (CModelInfo::GetModelInfo(modelId)->GetModelType()) {
-                        case MODEL_INFO_PED:
-                        case MODEL_INFO_VEHICLE: {
-                            return;
-                        }
-                    }
-                }
-
-                if (!info.IsMissionOrGameRequired())
-                    info.AddToList(ms_startLoadedList);
-            }
-            break;
-        }
-        case eStreamingLoadState::LOADSTATE_READING:
-        case eStreamingLoadState::LOADSTATE_REQUESTED:
-        case eStreamingLoadState::LOADSTATE_FINISHING:
-            break;
-
-        case eStreamingLoadState::LOADSTATE_NOT_LOADED: {
-            switch (GetModelType(modelId)) {
-                case eModelType::TXD: { // Request parent (if any) TXD
-                    info.m_nLoadState = LOADSTATE_LOADED;
-                    return;
-                }
-                case eModelType::DFF: { // Request TXD and (if any) IFP
-                    CBaseModelInfo* modelInfo = CModelInfo::GetModelInfo(modelId);
-                  //  RequestTxdModel(modelInfo->m_nTxdIndex, streamingFlags);
-
-                    const int32 animFileIndex = modelInfo->GetAnimFileIndex();
-                    if (animFileIndex != -1)
-                        RequestModel(IFPToModelId(animFileIndex), STREAMING_KEEP_IN_MEMORY);
-                    break;
-                }
-            }
-            info.AddToList(ms_pStartRequestedList);
-
-            ++ms_numModelsRequested;
-            if (streamingFlags & STREAMING_PRIORITY_REQUEST)
-                ++ms_numPriorityRequests;
-
-            info.SetFlags(streamingFlags);
-            info.m_nLoadState = LOADSTATE_REQUESTED;
-            break;
-        }
-    }
+    if (modelId < 0 || modelId >= RESOURCE_ID_TOTAL) return;
+    CHook::CallFunction<void>(g_libGTASA + (VER_x32 ? 0x2d299c + 1 : 0x3949e0), modelId, streamingFlags);
 }
 
 void CStreaming::AddLodsToRequestList(const CVector* point, int32 streamingFlags) {
@@ -465,67 +397,7 @@ void CStreaming::LoadRequestedModels() {
 // if your current channelIndex is zero then "1 - channelIndex" will give you the other
 // streaming channel within CStreaming::ms_channel which is 1 (second streaming channel).
 void CStreaming::LoadAllRequestedModels(bool bOnlyPriorityRequests) {
-   static bool m_bLoadingAllRequestedModels{};
-
-    if (m_bLoadingAllRequestedModels) {
-        return;
-    }
-    m_bLoadingAllRequestedModels = true;
-
-    FlushChannels();
-
-    auto numModelsToLoad = std::max(10, 2 * ms_numModelsRequested);
-    int32 chIdx = 0;
-    while (true) {
-        const tStreamingChannel& ch1 = ms_channel[0];
-        const tStreamingChannel& ch2 = ms_channel[1];
-
-        if (IsRequestListEmpty()
-            && ch1.IsIdle()
-            && ch2.IsIdle()
-            || numModelsToLoad <= 0
-                ) {
-            break;
-        }
-
-        if (ms_bLoadingBigModel) {
-            chIdx = 0;
-        }
-
-        auto& currCh = ms_channel[chIdx];
-
-        if (!currCh.IsIdle()) {
-            // Finish loading whatever it was loading
-            CdStreamSync(chIdx);
-            currCh.iLoadingLevel = 100;
-        }
-        if (currCh.IsReading()) {
-            ProcessLoadingChannel(chIdx);
-            if (currCh.IsStarted())
-                ProcessLoadingChannel(chIdx); // Finish loading big model
-        }
-        if (bOnlyPriorityRequests && ms_numPriorityRequests == 0)
-            break;
-
-        if (!ms_bLoadingBigModel) {
-            const auto other = 1 - chIdx;
-            if (ms_channel[other].IsIdle()) {
-                RequestModelStream(other);
-            }
-
-            if (currCh.IsIdle() && !ms_bLoadingBigModel) {
-                RequestModelStream(chIdx);
-            }
-        }
-
-        if (ch1.IsIdle() && ch2.IsIdle())
-            break;
-
-        chIdx = 1 - chIdx; // Switch to other channel
-        --numModelsToLoad;
-    }
-    FlushChannels();
-    m_bLoadingAllRequestedModels = false;
+    CHook::CallFunction<void>(g_libGTASA + (VER_x32 ? 0x2d46a8 + 1 : 0x396b28), bOnlyPriorityRequests);
 }
 
 int32 CStreaming::GetNextFileOnCd(uint32 streamLastPosn, bool bNotPriority) {
