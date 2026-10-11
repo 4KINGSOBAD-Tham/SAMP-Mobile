@@ -44,8 +44,8 @@ public class GameDataDownloadDialog {
     public static final String DATA_DOWNLOAD_URL = "https://github.com/4KINGSOBAD-Tham/SAMP-Mobile/releases/download/v1.0.0/GTA.zip";
     public static final String DATA_DOWNLOAD_FALLBACK_URL = "https://github.com/4KINGSOBAD-Tham/SAMP-Mobile/releases/latest/download/GTA.zip";
 
-    public static final String PATCH_DOWNLOAD_URL = "https://github.com/4KINGSOBAD-Tham/SAMP-Mobile/releases/download/v1.0.0/patch.zip";
-    public static final String PATCH_DOWNLOAD_FALLBACK_URL = "https://github.com/4KINGSOBAD-Tham/SAMP-Mobile/releases/latest/download/patch.zip";
+    public static final String PATCH_DOWNLOAD_URL = "https://github.com/4KINGSOBAD-Tham/patch-skins/releases/download/v1.0.0/patch.zip";
+    public static final String PATCH_DOWNLOAD_FALLBACK_URL = "https://github.com/4KINGSOBAD-Tham/patch-skins/releases/latest/download/patch.zip";
 
     public static final String TARGET_EXTRACT_DIR = "/storage/emulated/0/";
 
