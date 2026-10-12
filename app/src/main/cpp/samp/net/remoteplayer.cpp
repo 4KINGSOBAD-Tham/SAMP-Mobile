@@ -90,7 +90,7 @@ void CRemotePlayer::Process()
 			}
 			else
 			{
-				ProcessAnimation();
+				//ProcessAnimation();
 				m_pPlayerPed->SetActionTrigger(ACTION_NORMAL);
 			}
 
