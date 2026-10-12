@@ -381,7 +381,7 @@ void CRemotePlayer::UpdateOnFootTargetPosition()
 	if(m_pPlayerPed->m_pPed->IsAdded())
 	{
 		// Prevent local collisions from pushing remote ped out of sync
-		m_pPlayerPed->m_pPed->bDisableCollisionForce = true;
+		m_pPlayerPed->m_pPed->physicalFlags.bDisableCollisionForce = true;
 
 		m_vecPosOffset.x = FloatOffset(m_vecOnFootTargetPos.x, matPlayer.pos.x);
 		m_vecPosOffset.y = FloatOffset(m_vecOnFootTargetPos.y, matPlayer.pos.y);
@@ -556,7 +556,7 @@ bool CRemotePlayer::Spawn(uint8_t byteTeam, int iSkin, CVector *vecPos, float fR
 		m_fReportedHealth = 100.0f;
 		pPlayerPed->SetKeys(0, 0, 0);
 		if (pPlayerPed->m_pPed) {
-			pPlayerPed->m_pPed->bDisableCollisionForce = true;
+			pPlayerPed->m_pPed->physicalFlags.bDisableCollisionForce = true;
 		}
 		if (byteFightingStyle != 4) {
 			pPlayerPed->SetFightingStyle(byteFightingStyle);
