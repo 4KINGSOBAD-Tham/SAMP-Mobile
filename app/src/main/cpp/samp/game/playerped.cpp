@@ -332,68 +332,6 @@ bool IsTaskRunNamedOrSlideToCoord(void* pTask)
 	return false;
 }
 
-void* GetSubTaskFromTask(CPedIntelligence* pTask)
-{
-	uintptr_t pVTableTask = *((uintptr_t*)pTask);
-	return ((void* (*)(void*))(*(void**)(pVTableTask + 12)))(pTask);
-}
-
-uint32_t CPlayerPed::GetCurrentAnimationIndex()
-{
-	/*int blendData = 4.0f;
-
-	if (!m_pPed || !m_dwGTAId)
-	{
-		return 0;
-	}
-
-	if (!GamePool_Ped_GetAt(m_dwGTAId))
-	{
-		return 0;
-	}
-
-	if (!m_pPed->m_pRwObject)
-	{
-		return 0;
-	}
-	sizeof(CPedGTA);
-	CPedIntelligence* pIntelligence = m_pPed->m_pIntelligence;
-
-	if (pIntelligence)
-	{
-		void* pTask = pIntelligence->m_TaskMgr.m_aPrimaryTasks[3];
-
-		if (pTask)
-		{
-			while (!IsTaskRunNamedOrSlideToCoord(pTask))
-			{
-				pTask = GetSubTaskFromTask(pTask);
-				if (!pTask)
-				{
-					return 0;
-				}
-			}
-
-			const char* szName = (const char*)((uintptr_t)pTask + 13);
-			const char* szGroupName = (const char*)((uintptr_t)pTask + 37);
-
-			std::string szStr = std::string(szGroupName);
-			szStr += ":";
-			szStr += szName;
-
-			int idx = GetAnimIdxByName(szStr.c_str());
-			if (idx == -1)
-			{
-				return 0;
-			}
-			else
-			{
-				return idx + 1;
-			}
-		}
-	}*/
-	return 0;
-}
 
 static std::unordered_map<uint32_t, int> s_animHashMap;
 static bool s_animHashMapInit = false;
