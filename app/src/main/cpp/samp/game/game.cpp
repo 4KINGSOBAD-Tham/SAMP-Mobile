@@ -510,6 +510,12 @@ void CGame::PreloadObjectsAnims()
 	if(IsAnimationLoaded("BEACH") == 0) RequestAnimation("BEACH");
 	if(IsAnimationLoaded("SUNBATHE") == 0) RequestAnimation("SUNBATHE");
 	if(IsAnimationLoaded("INT_HOUSE") == 0) RequestAnimation("INT_HOUSE");
+	if(IsAnimationLoaded("BASEBALL") == 0) RequestAnimation("BASEBALL");
+	if(IsAnimationLoaded("SWORD") == 0) RequestAnimation("SWORD");
+	if(IsAnimationLoaded("CHAINSAW") == 0) RequestAnimation("CHAINSAW");
+	if(IsAnimationLoaded("FIGHT_E") == 0) RequestAnimation("FIGHT_E");
+	if(IsAnimationLoaded("DILDO") == 0) RequestAnimation("DILDO");
+	if(IsAnimationLoaded("FLOWERS") == 0) RequestAnimation("FLOWERS");
 }
 // 0.3.7
 void CGame::SetWorldWeather(int byteWeatherID)

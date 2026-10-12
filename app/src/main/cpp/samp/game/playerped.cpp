@@ -14,6 +14,7 @@
 #include "Animation/AnimBlendAssociation.h"
 #include "Animation/AnimBlendHierarchy.h"
 #include "util.h"
+#include "Widgets/WidgetGta.h"
 
 extern CGame* pGame;
 extern CNetGame* pNetGame;
@@ -671,6 +672,14 @@ uint8_t CPlayerPed::GetAdditionalKeys()
 
 uint16_t CPlayerPed::GetKeys(uint16_t *lrAnalog, uint16_t *udAnalog, bool clear)
 {
+	if (m_pPed && m_pPed == GamePool_FindPlayerPed())
+	{
+		if (!IsInVehicle() && IsAttackWidgetTouched())
+		{
+			LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = true;
+		}
+	}
+
 	*lrAnalog = LocalPlayerKeys.wKeyLR;
 	*udAnalog = LocalPlayerKeys.wKeyUD;
 

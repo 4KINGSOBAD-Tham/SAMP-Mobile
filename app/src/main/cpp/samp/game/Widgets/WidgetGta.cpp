@@ -48,6 +48,8 @@ void SetWidgetFromName(const char* name, CWidgetGta* pWidget)
     if(!strcmp("brake", name)) SetWidgetFromId(WidgetIDs::WIDGET_BRAKE, pWidget);
     if(!strcmp("handbrake", name)) SetWidgetFromId(WidgetIDs::WIDGET_HANDBRAKE, pWidget);
     if(!strcmp("punch", name)) SetWidgetFromId(WidgetIDs::WIDGET_ATTACK, pWidget);
+    if(!strcmp("attack", name)) SetWidgetFromId(WidgetIDs::WIDGET_ATTACK, pWidget);
+    if(!strcmp("fire", name)) SetWidgetFromId(WidgetIDs::WIDGET_ATTACK, pWidget);
 }
 
 eWidgetState ProcessFixedWidget(CWidgetGta* pWidget)
@@ -179,6 +181,17 @@ bool CWidgetGta::IsReleased(CVector2D *pVecOut) {
 
 bool CWidgetGta::IsTouched(CVector2D *pVecOut) {
     return CHook::CallFunction<bool>(g_libGTASA + (VER_x32 ? 0x002B3324 + 1 : 0x3725D0), this, pVecOut);
+}
+
+bool IsAttackWidgetTouched() {
+    if(m_pWidgets[WidgetIDs::WIDGET_ATTACK] && m_pWidgets[WidgetIDs::WIDGET_ATTACK]->IsTouched(nullptr)) {
+        return true;
+    }
+    if(CTouchInterface::m_pWidgets && CTouchInterface::m_pWidgets[WidgetIDs::WIDGET_ATTACK] &&
+       CTouchInterface::m_pWidgets[WidgetIDs::WIDGET_ATTACK]->IsTouched(nullptr)) {
+        return true;
+    }
+    return false;
 }
 
 
