@@ -374,12 +374,15 @@ void CRemotePlayer::InterpolateAndRotate()
 // 0.3.7
 void CRemotePlayer::UpdateOnFootTargetPosition()
 {
-	if(!m_pPlayerPed) return;
+	if(!m_pPlayerPed || !m_pPlayerPed->m_pPed) return;
 
 	RwMatrix matPlayer = m_pPlayerPed->m_pPed->GetMatrix().ToRwMatrix();
 
 	if(m_pPlayerPed->m_pPed->IsAdded())
 	{
+		// Prevent local collisions from pushing remote ped out of sync
+		m_pPlayerPed->m_pPed->bDisableCollisionForce = true;
+
 		m_vecPosOffset.x = FloatOffset(m_vecOnFootTargetPos.x, matPlayer.pos.x);
 		m_vecPosOffset.y = FloatOffset(m_vecOnFootTargetPos.y, matPlayer.pos.y);
 		m_vecPosOffset.z = FloatOffset(m_vecOnFootTargetPos.z, matPlayer.pos.z);
@@ -393,18 +396,30 @@ void CRemotePlayer::UpdateOnFootTargetPosition()
 				matPlayer.pos.z = m_vecOnFootTargetPos.z;
 
 				m_pPlayerPed->m_pPed->SetMatrix((CMatrix&)matPlayer);
+				m_pPlayerPed->m_pPed->SetVelocity(CVector(0.0f, 0.0f, 0.0f));
 			}
 			else
 			{
-				CVector vecMoveSpeed = m_pPlayerPed->m_pPed->GetMoveSpeed();
-				if(m_vecPosOffset.x > 0.00001f)
-					vecMoveSpeed.x += (m_vecOnFootTargetPos.x - matPlayer.pos.x) * 0.1f;
-				if(m_vecPosOffset.y > 0.00001f)
-					vecMoveSpeed.y += (m_vecOnFootTargetPos.y - matPlayer.pos.y) * 0.1f;
-				if(m_vecPosOffset.z > 0.00001f)
-					vecMoveSpeed.z += (m_vecOnFootTargetPos.z - matPlayer.pos.z) * 0.1f;
-
-				m_pPlayerPed->m_pPed->SetVelocity(vecMoveSpeed);
+				// If remote player is stationary / in-place attack (network speed is zero):
+				if(m_ofSync.vecMoveSpeed.x == 0.0f && m_ofSync.vecMoveSpeed.y == 0.0f)
+				{
+					// Smoothly interpolate position directly to target, kill runaway velocity to prevent sliding
+					matPlayer.pos.x += (m_vecOnFootTargetPos.x - matPlayer.pos.x) * 0.4f;
+					matPlayer.pos.y += (m_vecOnFootTargetPos.y - matPlayer.pos.y) * 0.4f;
+					if (m_vecPosOffset.z < 0.5f)
+						matPlayer.pos.z += (m_vecOnFootTargetPos.z - matPlayer.pos.z) * 0.4f;
+					m_pPlayerPed->m_pPed->SetMatrix((CMatrix&)matPlayer);
+					m_pPlayerPed->m_pPed->SetVelocity(CVector(0.0f, 0.0f, 0.0f));
+				}
+				else
+				{
+					// Moving: set proportional velocity towards target with network speed base (no unbounded accumulation)
+					CVector vecMoveSpeed;
+					vecMoveSpeed.x = m_ofSync.vecMoveSpeed.x + (m_vecOnFootTargetPos.x - matPlayer.pos.x) * 0.5f;
+					vecMoveSpeed.y = m_ofSync.vecMoveSpeed.y + (m_vecOnFootTargetPos.y - matPlayer.pos.y) * 0.5f;
+					vecMoveSpeed.z = m_ofSync.vecMoveSpeed.z;
+					m_pPlayerPed->m_pPed->SetVelocity(vecMoveSpeed);
+				}
 			}
 		}
 	}
@@ -540,6 +555,9 @@ bool CRemotePlayer::Spawn(uint8_t byteTeam, int iSkin, CVector *vecPos, float fR
 		m_pPlayerPed = pPlayerPed;
 		m_fReportedHealth = 100.0f;
 		pPlayerPed->SetKeys(0, 0, 0);
+		if (pPlayerPed->m_pPed) {
+			pPlayerPed->m_pPed->bDisableCollisionForce = true;
+		}
 		if (byteFightingStyle != 4) {
 			pPlayerPed->SetFightingStyle(byteFightingStyle);
 		}

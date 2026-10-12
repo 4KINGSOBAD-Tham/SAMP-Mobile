@@ -674,9 +674,25 @@ uint16_t CPlayerPed::GetKeys(uint16_t *lrAnalog, uint16_t *udAnalog, bool clear)
 {
 	if (m_pPed && m_pPed == GamePool_FindPlayerPed())
 	{
-		if (!IsInVehicle() && IsAttackWidgetTouched())
+		if (!IsInVehicle())
 		{
-			LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = true;
+			if (IsAttackWidgetTouched())
+			{
+				LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = true;
+			}
+			else if (m_pPed->bFiringWeapon)
+			{
+				LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = true;
+			}
+			else if (m_pPed->m_pPlayerData && m_pPed->m_pPlayerData->m_fAttackButtonCounter > 0.0f)
+			{
+				LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = true;
+			}
+			else if (m_pPed->m_pIntelligence &&
+			         m_pPed->m_pIntelligence->m_TaskMgr.m_aSecondaryTasks[TASK_SECONDARY_ATTACK] != nullptr)
+			{
+				LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = true;
+			}
 		}
 	}
 

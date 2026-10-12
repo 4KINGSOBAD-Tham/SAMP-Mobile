@@ -184,11 +184,17 @@ bool CWidgetGta::IsTouched(CVector2D *pVecOut) {
 }
 
 bool IsAttackWidgetTouched() {
-    if(m_pWidgets[WidgetIDs::WIDGET_ATTACK] && m_pWidgets[WidgetIDs::WIDGET_ATTACK]->IsTouched(nullptr)) {
+    static void* pfnTouch = dlsym(CHook::lib, "_ZN15CTouchInterface9IsTouchedENS_9WidgetIDsEP9CVector2Di");
+    if (pfnTouch) {
+        if (((bool(*)(int, void*, int))pfnTouch)(WidgetIDs::WIDGET_ATTACK, nullptr, 0)) {
+            return true;
+        }
+    }
+    if (m_pWidgets[WidgetIDs::WIDGET_ATTACK] && m_pWidgets[WidgetIDs::WIDGET_ATTACK]->IsTouched(nullptr)) {
         return true;
     }
-    if(CTouchInterface::m_pWidgets && CTouchInterface::m_pWidgets[WidgetIDs::WIDGET_ATTACK] &&
-       CTouchInterface::m_pWidgets[WidgetIDs::WIDGET_ATTACK]->IsTouched(nullptr)) {
+    if (CTouchInterface::m_pWidgets && CTouchInterface::m_pWidgets[WidgetIDs::WIDGET_ATTACK] &&
+        CTouchInterface::m_pWidgets[WidgetIDs::WIDGET_ATTACK]->IsTouched(nullptr)) {
         return true;
     }
     return false;

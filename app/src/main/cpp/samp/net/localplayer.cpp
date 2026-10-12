@@ -1756,7 +1756,18 @@ void CLocalPlayer::SendExitVehicleNotification(VEHICLEID VehicleID)
 // 0.3.7
 void CLocalPlayer::SendTakeDamageEvent(PLAYERID PlayerID, float fDamageFactor, int weaponType, int pedPieceType)
 {
-	fDamageFactor *= 0.33f;
+	if (weaponType == 0)
+	{
+		fDamageFactor = 3.3f;
+	}
+	else if (weaponType >= 1 && weaponType <= 8)
+	{
+		if (fDamageFactor < 4.0f) fDamageFactor = 4.125f;
+	}
+	else
+	{
+		fDamageFactor *= 0.33f;
+	}
 
 	RakNet::BitStream bsSend;
 	bsSend.Write(true);
@@ -1770,7 +1781,18 @@ void CLocalPlayer::SendTakeDamageEvent(PLAYERID PlayerID, float fDamageFactor, i
 // 0.3.7
 void CLocalPlayer::SendGiveDamageEvent(PLAYERID PlayerID, float fDamageFactor, int weaponType, int pedPieceType)
 {
-	fDamageFactor *= 0.33f;
+	if (weaponType == 0)
+	{
+		fDamageFactor = 3.3f;
+	}
+	else if (weaponType >= 1 && weaponType <= 8)
+	{
+		if (fDamageFactor < 4.0f) fDamageFactor = 4.125f;
+	}
+	else
+	{
+		fDamageFactor *= 0.33f;
+	}
 
 	RakNet::BitStream bsSend;
 	bsSend.Write(false);
