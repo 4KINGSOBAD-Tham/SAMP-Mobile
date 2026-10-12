@@ -631,8 +631,7 @@ void ScrClearPlayerAnimations(RPCParameters* rpcParams)
 			}
 		}
 		if (pPlayerPed) {
-            mat = pPlayerPed->m_pPed->GetMatrix().ToRwMatrix();
-			pPlayerPed->m_pPed->SetPosn(mat.pos.x, mat.pos.y, mat.pos.z);
+			pPlayerPed->ClearAllTasks();
 		}
 	}
 }

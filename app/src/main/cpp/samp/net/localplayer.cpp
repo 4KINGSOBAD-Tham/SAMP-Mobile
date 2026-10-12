@@ -755,7 +755,7 @@ void CLocalPlayer::SendOnFootFullSyncData()
 		}
 	}
 
-	ofSync.dwAnimation = 0;
+	ofSync.dwAnimation = m_pPlayerPed ? m_pPlayerPed->GetCurrentAnimationIndex() : 0;
 	//_this->field_104 = 1;
 
 	if ((GetTickCount() - m_dwLastUpdateOnFootData) > 500 || memcmp(&m_ofSync, &ofSync, sizeof(ONFOOT_SYNC_DATA)))

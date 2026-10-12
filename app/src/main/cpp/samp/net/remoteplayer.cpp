@@ -90,7 +90,7 @@ void CRemotePlayer::Process()
 			}
 			else
 			{
-				//ProcessAnimation();
+				ProcessAnimation();
 				m_pPlayerPed->SetActionTrigger(ACTION_NORMAL);
 			}
 
@@ -1542,27 +1542,32 @@ void CRemotePlayer::ProcessAnimation()
 		animationData.iValue = m_ofSync.dwAnimation;
 		int flag = m_ofSync.dwAnimation >> 31;
 		if(!flag) {
-			if(animationData.sId < 0)
+			if(animationData.sId == 0)
 			{
 				if(m_bWasAnimSettedFlag)
 				{
 					m_dwPlayingAnimIndex = 0;
-					m_pPlayerPed->PlayAnimationFromIndex(0, animationData.cFrameDelta);
+					m_pPlayerPed->ClearAllTasks();
 					m_bWasAnimSettedFlag = false;
 				}
 			}
 			else
 			{
+				float fDelta = (animationData.cFrameDelta > 0) ? (float)animationData.cFrameDelta : 4.0f;
 				if(m_dwPlayingAnimIndex != animationData.sId)
 				{
 					m_dwPlayingAnimIndex = animationData.sId;
-					m_pPlayerPed->PlayAnimationFromIndex(animationData.sId, animationData.cFrameDelta);
+					m_pPlayerPed->PlayAnimationFromIndex(animationData.sId, fDelta,
+						animationData.cLoopA, animationData.cLoopX, animationData.cLoopY, animationData.cLoopF, 0);
 				}
 
 				if(m_dwPlayingAnimIndex)
 				{
 					if(!m_pPlayerPed->IsPlayingAnimation(m_dwPlayingAnimIndex))
-						m_pPlayerPed->PlayAnimationFromIndex(animationData.sId, animationData.cFrameDelta);
+					{
+						m_pPlayerPed->PlayAnimationFromIndex(animationData.sId, fDelta,
+							animationData.cLoopA, animationData.cLoopX, animationData.cLoopY, animationData.cLoopF, 0);
+					}
 				}
 
 				m_bWasAnimSettedFlag = true;
@@ -1571,8 +1576,7 @@ void CRemotePlayer::ProcessAnimation()
 		if (flag && m_bWasAnimSettedFlag)
 		{
 			m_dwPlayingAnimIndex = 0;
-			// we have to reset anim
-			m_pPlayerPed->PlayAnimationFromIndex(0, 4.0f);
+			m_pPlayerPed->ClearAllTasks();
 			m_bWasAnimSettedFlag = false;
 		}
 	}

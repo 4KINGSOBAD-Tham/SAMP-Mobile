@@ -80,7 +80,7 @@ public:
 	void SatisfyHunger();
 	uint32_t GetCurrentAnimationIndex();
 	bool IsPlayingAnimation(int iIndex);
-	void PlayAnimationFromIndex(int iIndex, float fDelta);
+	void PlayAnimationFromIndex(int iIndex, float fDelta, int opt1 = 0, int opt2 = 1, int opt3 = 1, int opt4 = 0, int iTime = 0);
 	uint8_t GetCurrentWeapon();
 	void SetInitialState();
 	void SetModelIndex(uint uiModel);

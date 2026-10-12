@@ -3,11 +3,17 @@
 #include "../net/netgame.h"
 #include "../vendor/armhook/patch.h"
 #include <cmath>
+#include <unordered_map>
 // 0.3.7
 #include "Entity/CPedGTA.h"
 #include "Streaming.h"
 #include "World.h"
 #include "game/Models/ModelInfo.h"
+#include "Core/KeyGen.h"
+#include "Plugins/RpAnimBlendPlugin/RpAnimBlend.h"
+#include "Animation/AnimBlendAssociation.h"
+#include "Animation/AnimBlendHierarchy.h"
+#include "util.h"
 
 extern CGame* pGame;
 extern CNetGame* pNetGame;
@@ -389,19 +395,78 @@ uint32_t CPlayerPed::GetCurrentAnimationIndex()
 	return 0;
 }
 
+static std::unordered_map<uint32_t, int> s_animHashMap;
+static bool s_animHashMapInit = false;
+
+static void InitAnimMap()
+{
+	if (s_animHashMapInit) return;
+	for (int i = 0; i < 1843; i++)
+	{
+		const char* pEntry = GetAnimByIdx(i);
+		if (!pEntry) continue;
+		const char* pColon = strchr(pEntry, ':');
+		if (pColon)
+		{
+			uint32_t hash = CKeyGen::GetUppercaseKey(pColon + 1);
+			s_animHashMap[hash] = i + 1; // 1-based index (sId)
+		}
+	}
+	s_animHashMapInit = true;
+}
+
+uint32_t CPlayerPed::GetCurrentAnimationIndex()
+{
+	if (!m_pPed || !m_pPed->m_pRwClump) return 0;
+
+	InitAnimMap();
+
+	// 0x10 = ANIMATION_PARTIAL (melee attacks, fighting styles, partial anims)
+	CAnimBlendAssociation* pAssoc = RpAnimBlendClumpGetFirstAssociation(m_pPed->m_pRwClump, 0x10);
+	if (!pAssoc)
+	{
+		// 0x01 = ANIMATION_STARTED
+		pAssoc = RpAnimBlendClumpGetFirstAssociation(m_pPed->m_pRwClump, 0x01);
+	}
+	if (!pAssoc)
+	{
+		pAssoc = RpAnimBlendClumpGetFirstAssociation(m_pPed->m_pRwClump);
+	}
+
+	if (pAssoc && pAssoc->m_pHierarchy)
+	{
+		auto it = s_animHashMap.find(pAssoc->m_pHierarchy->m_hashKey);
+		if (it != s_animHashMap.end())
+		{
+			ANIMATION_DATA animData;
+			animData.iValue = 0;
+			animData.sId = (unsigned short)it->second;
+			animData.cFrameDelta = (unsigned char)(pAssoc->m_fBlendDelta > 0.0f ? (int)pAssoc->m_fBlendDelta : 4);
+			animData.cLoopA = pAssoc->IsRepeating() ? 1 : 0;
+			animData.cLoopX = pAssoc->HasXTranslation() ? 1 : 0;
+			animData.cLoopY = pAssoc->HasYTranslation() ? 1 : 0;
+			animData.cLoopF = 0;
+			animData.cTime = 0;
+			return animData.iValue;
+		}
+	}
+
+	return 0;
+}
+
 bool CPlayerPed::IsPlayingAnimation(int iIndex)
 {
 	if (!m_pPed || !m_dwGTAId || (iIndex == 0) )
 	{
-		return 0;
+		return false;
 	}
 	if (!GamePool_Ped_GetAt(m_dwGTAId))
 	{
-		return 0;
+		return false;
 	}
-	if (!m_pPed->m_pRwObject)
+	if (!m_pPed->m_pRwObject || !m_pPed->m_pRwClump)
 	{
-		return 0;
+		return false;
 	}
 
 	const char* pAnim = GetAnimByIdx(iIndex - 1);
@@ -409,20 +474,18 @@ bool CPlayerPed::IsPlayingAnimation(int iIndex)
 	{
 		return false;
 	}
-	const char* pNameAnim = strchr(pAnim, ':') + 1;
-
-    //RpAnimBlendClumpGetAssociation(RpClump *,char const*)	000000000046AAF4
-	uintptr_t blendAssoc = ((uintptr_t(*)(RpClump* clump, const char* szName))(g_libGTASA + (VER_x32 ? 0x00390A24 + 1:0x46AAF4)))
-			(m_pPed->m_pRwClump, pNameAnim);	// RpAnimBlendClumpGetAssociation
-
-	if (blendAssoc)
-	{
-		return true;
-	}
-	else
+	const char* pColon = strchr(pAnim, ':');
+	if (!pColon)
 	{
 		return false;
 	}
+	const char* pNameAnim = pColon + 1;
+
+	//RpAnimBlendClumpGetAssociation(RpClump *,char const*)	000000000046AAF4
+	uintptr_t blendAssoc = ((uintptr_t(*)(RpClump* clump, const char* szName))(g_libGTASA + (VER_x32 ? 0x00390A24 + 1:0x46AAF4)))
+			(m_pPed->m_pRwClump, pNameAnim);	// RpAnimBlendClumpGetAssociation
+
+	return (blendAssoc != 0);
 }
 
 bool IsBlendAssocGroupLoaded(int iGroup)
@@ -434,52 +497,39 @@ bool IsBlendAssocGroupLoaded(int iGroup)
 	return *(pBlendAssocGroup) != NULL;
 }
 
-void CPlayerPed::PlayAnimationFromIndex(int iIndex, float fDelta)
+void CPlayerPed::PlayAnimationFromIndex(int iIndex, float fDelta, int opt1, int opt2, int opt3, int opt4, int iTime)
 {
-	if (!iIndex)
+	if (!iIndex || !m_pPed)
 	{
-		RwMatrix mat;
-        mat = m_pPed->GetMatrix().ToRwMatrix();
-        m_pPed->SetPosn(mat.pos.x, mat.pos.y, mat.pos.z);
 		return;
 	}
-	std::string szAnim;
-	std::string szBlock;
 
-	char pszAnim[40];
-	char pszBlock[40];
-
-	memset(&pszAnim[0], 0, 40);
-	memset(&pszBlock[0], 0, 40);
-
-	bool bTest = false;
 	const char* pBegin = GetAnimByIdx(iIndex - 1);
 	if (!pBegin)
 	{
 		return;
 	}
-	while (*pBegin)
+
+	const char* pColon = strchr(pBegin, ':');
+	if (!pColon)
 	{
-		if (*pBegin == ':')
-		{
-			pBegin++;
-			bTest = true;
-			continue;
-		}
-		if (!bTest)
-		{
-			szBlock += *pBegin;
-		}
-		if (bTest)
-		{
-			szAnim += *pBegin;
-		}
-		pBegin++;
+		return;
 	}
 
-	strcpy(&pszAnim[0], szAnim.c_str());
-	strcpy(&pszBlock[0], szBlock.c_str());
-	ApplyAnimation(&pszAnim[0], &pszBlock[0], fDelta, 0, 1, 1, 0, 0);
+	char szBlock[40] = { 0 };
+	char szAnim[40] = { 0 };
+
+	size_t blockLen = (size_t)(pColon - pBegin);
+	if (blockLen >= sizeof(szBlock)) blockLen = sizeof(szBlock) - 1;
+	strncpy(szBlock, pBegin, blockLen);
+	szBlock[blockLen] = '\0';
+
+	strncpy(szAnim, pColon + 1, sizeof(szAnim) - 1);
+	szAnim[sizeof(szAnim) - 1] = '\0';
+
+	if (fDelta <= 0.0f) fDelta = 4.0f;
+
+	ApplyAnimation(szAnim, szBlock, fDelta, opt1, opt2, opt3, opt4, iTime);
 }
 
 // 0.3.7
@@ -780,8 +830,6 @@ void CPlayerPed::GetTransformedBonePosition(int iBoneID, CVector* vecOut)
 
 void CPlayerPed::ApplyAnimation(const char* szAnimName, const char* szAnimLib, float fT, int opt1, int opt2, int opt3, int opt4, int iTime)
 {
-	int iWaitAnimLoad = 0;
-
 	if(!m_pPed) return;
 	if(!GamePool_Ped_GetAt(m_dwGTAId)) return;
 
@@ -791,7 +839,7 @@ void CPlayerPed::ApplyAnimation(const char* szAnimName, const char* szAnimLib, f
 	if(!pGame->IsAnimationLoaded(szAnimLib))
 	{
 		pGame->RequestAnimation(szAnimLib);
-        ScriptCommand(&apply_animation, m_dwGTAId, szAnimName, szAnimLib, fT, opt1, opt2, opt3, opt4, iTime);
+		CStreaming::LoadAllRequestedModels(false);
 	}
 
 	ScriptCommand(&apply_animation, m_dwGTAId, szAnimName, szAnimLib, fT, opt1, opt2, opt3, opt4, iTime);

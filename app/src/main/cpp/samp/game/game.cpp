@@ -495,6 +495,21 @@ void CGame::PreloadObjectsAnims()
 	if(IsAnimationLoaded("RUNNINGMAN") == 0) RequestAnimation("RUNNINGMAN");
 	if(IsAnimationLoaded("STRIP") == 0) RequestAnimation("STRIP");
 	if(IsAnimationLoaded("WOP") == 0) RequestAnimation("WOP");
+
+	// sync combat, melee, prone, knockdown & essential animations
+	if(IsAnimationLoaded("CRACK") == 0) RequestAnimation("CRACK");
+	if(IsAnimationLoaded("SWEET") == 0) RequestAnimation("SWEET");
+	if(IsAnimationLoaded("PED") == 0) RequestAnimation("PED");
+	if(IsAnimationLoaded("FIGHT_B") == 0) RequestAnimation("FIGHT_B");
+	if(IsAnimationLoaded("FIGHT_C") == 0) RequestAnimation("FIGHT_C");
+	if(IsAnimationLoaded("FIGHT_D") == 0) RequestAnimation("FIGHT_D");
+	if(IsAnimationLoaded("GYMNASIUM") == 0) RequestAnimation("GYMNASIUM");
+	if(IsAnimationLoaded("KNIFE") == 0) RequestAnimation("KNIFE");
+	if(IsAnimationLoaded("CARRY") == 0) RequestAnimation("CARRY");
+	if(IsAnimationLoaded("MEDIC") == 0) RequestAnimation("MEDIC");
+	if(IsAnimationLoaded("BEACH") == 0) RequestAnimation("BEACH");
+	if(IsAnimationLoaded("SUNBATHE") == 0) RequestAnimation("SUNBATHE");
+	if(IsAnimationLoaded("INT_HOUSE") == 0) RequestAnimation("INT_HOUSE");
 }
 // 0.3.7
 void CGame::SetWorldWeather(int byteWeatherID)
