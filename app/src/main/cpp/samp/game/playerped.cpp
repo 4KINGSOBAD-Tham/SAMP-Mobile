@@ -676,58 +676,13 @@ uint16_t CPlayerPed::GetKeys(uint16_t *lrAnalog, uint16_t *udAnalog, bool clear)
 	{
 		if (!IsInVehicle())
 		{
-			uint8_t byteCurWeapon = GetCurrentWeapon();
-			bool bIsMelee = (byteCurWeapon <= 15 && byteCurWeapon != 9);
-
-			if (bIsMelee)
+			if (IsAttackWidgetTouched())
 			{
-				static uint32_t s_dwMeleeCycleTick = 0;
-				static bool s_bWasTouching = false;
-				uint32_t dwNow = GetTickCount();
-
-				if (IsAttackWidgetTouched())
-				{
-					if (!s_bWasTouching)
-					{
-						s_bWasTouching = true;
-						s_dwMeleeCycleTick = dwNow;
-					}
-
-					// Cycle every 360ms: first 160ms pressed (down), next 200ms released (up)
-					uint32_t elapsed = (dwNow - s_dwMeleeCycleTick) % 360;
-					if (elapsed < 160)
-					{
-						LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = true;
-					}
-					else
-					{
-						LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = false;
-					}
-				}
-				else
-				{
-					s_bWasTouching = false;
-				}
+				LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = true;
 			}
 			else
 			{
-				if (IsAttackWidgetTouched())
-				{
-					LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = true;
-				}
-				else if (m_pPed->bFiringWeapon)
-				{
-					LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = true;
-				}
-				else if (m_pPed->m_pPlayerData && m_pPed->m_pPlayerData->m_fAttackButtonCounter > 0.0f)
-				{
-					LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = true;
-				}
-				else if (m_pPed->m_pIntelligence &&
-				         m_pPed->m_pIntelligence->m_TaskMgr.m_aSecondaryTasks[TASK_SECONDARY_ATTACK] != nullptr)
-				{
-					LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = true;
-				}
+				LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = false;
 			}
 		}
 	}

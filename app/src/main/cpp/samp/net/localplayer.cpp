@@ -737,18 +737,9 @@ void CLocalPlayer::SendOnFootFullSyncData()
 	ofSync.byteCurrentWeapon = (exKeys << 6) | ofSync.byteCurrentWeapon & 0x3F;
 	ofSync.byteCurrentWeapon ^= (ofSync.byteCurrentWeapon ^ m_pPlayerPed->GetCurrentWeapon()) & 0x3F;
 	ofSync.byteSpecialAction = GetSpecialAction();
-	if (lrAnalog == 0 && udAnalog == 0 && !m_surfData.bIsActive)
-	{
-		ofSync.vecMoveSpeed.x = 0.0f;
-		ofSync.vecMoveSpeed.y = 0.0f;
-		ofSync.vecMoveSpeed.z = vecMoveSpeed.z;
-	}
-	else
-	{
-		ofSync.vecMoveSpeed.x = vecMoveSpeed.x;
-		ofSync.vecMoveSpeed.y = vecMoveSpeed.y;
-		ofSync.vecMoveSpeed.z = vecMoveSpeed.z;
-	}
+	ofSync.vecMoveSpeed.x = vecMoveSpeed.x;
+	ofSync.vecMoveSpeed.y = vecMoveSpeed.y;
+	ofSync.vecMoveSpeed.z = vecMoveSpeed.z;
 
     ofSync.vecSurfOffsets.x = 0.0f;
     ofSync.vecSurfOffsets.y = 0.0f;
@@ -767,7 +758,7 @@ void CLocalPlayer::SendOnFootFullSyncData()
 	ofSync.dwAnimation = 0;
 	//_this->field_104 = 1;
 
-	if ((GetTickCount() - m_dwLastUpdateOnFootData) > 150 || memcmp(&m_ofSync, &ofSync, sizeof(ONFOOT_SYNC_DATA)))
+	if ((GetTickCount() - m_dwLastUpdateOnFootData) > 500 || memcmp(&m_ofSync, &ofSync, sizeof(ONFOOT_SYNC_DATA)))
 	{
 		m_dwLastUpdateOnFootData = GetTickCount();
 
@@ -1765,18 +1756,7 @@ void CLocalPlayer::SendExitVehicleNotification(VEHICLEID VehicleID)
 // 0.3.7
 void CLocalPlayer::SendTakeDamageEvent(PLAYERID PlayerID, float fDamageFactor, int weaponType, int pedPieceType)
 {
-	if (weaponType == 0)
-	{
-		fDamageFactor = 3.3f;
-	}
-	else if (weaponType >= 1 && weaponType <= 8)
-	{
-		if (fDamageFactor < 4.0f) fDamageFactor = 4.125f;
-	}
-	else
-	{
-		fDamageFactor *= 0.33f;
-	}
+	fDamageFactor *= 0.33f;
 
 	RakNet::BitStream bsSend;
 	bsSend.Write(true);
@@ -1790,18 +1770,7 @@ void CLocalPlayer::SendTakeDamageEvent(PLAYERID PlayerID, float fDamageFactor, i
 // 0.3.7
 void CLocalPlayer::SendGiveDamageEvent(PLAYERID PlayerID, float fDamageFactor, int weaponType, int pedPieceType)
 {
-	if (weaponType == 0)
-	{
-		fDamageFactor = 3.3f;
-	}
-	else if (weaponType >= 1 && weaponType <= 8)
-	{
-		if (fDamageFactor < 4.0f) fDamageFactor = 4.125f;
-	}
-	else
-	{
-		fDamageFactor *= 0.33f;
-	}
+	fDamageFactor *= 0.33f;
 
 	RakNet::BitStream bsSend;
 	bsSend.Write(false);

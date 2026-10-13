@@ -198,11 +198,7 @@ uint32_t CPad__MeleeAttackJustDown_hook(uintptr_t thiz)
 	else
 	{
 		uint32_t dwResult = CPad__MeleeAttackJustDown(thiz);
-		if (dwResult)
-		{
-			LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = dwResult;
-		}
-
+		LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = (dwResult != 0);
 		return dwResult;
 	}
 }
@@ -221,11 +217,7 @@ uint32_t CPad__GetMeleeAttack_hook(uintptr_t thiz)
 	else
 	{
 		uint32_t dwResult = CPad__GetMeleeAttack(thiz);
-		if (dwResult)
-		{
-			LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = dwResult;
-		}
-
+		LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = (dwResult != 0);
 		return dwResult;
 	}
 }
@@ -502,10 +494,7 @@ bool CPad__GetWeapon_hook(uintptr_t thiz, CPedGTA* pPed)
 	else
 	{
 		bool bResult = CPad__GetWeapon(thiz, pPed);
-		if (bResult)
-		{
-			LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = true;
-		}
+		LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = bResult;
 		return bResult;
 	}
 }

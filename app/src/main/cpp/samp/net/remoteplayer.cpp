@@ -386,7 +386,7 @@ void CRemotePlayer::UpdateOnFootTargetPosition()
 
 		if(m_vecPosOffset.x > 0.00001f || m_vecPosOffset.y > 0.00001f || m_vecPosOffset.z > 0.00001f)
 		{
-			if(m_vecPosOffset.x > 2.0f || m_vecPosOffset.y > 2.0f || m_vecPosOffset.z > 1.2f)
+			if(m_vecPosOffset.x > 2.0f || m_vecPosOffset.y > 2.0f || m_vecPosOffset.z > 1.0f)
 			{
 				matPlayer.pos.x = m_vecOnFootTargetPos.x;
 				matPlayer.pos.y = m_vecOnFootTargetPos.y;
@@ -396,36 +396,15 @@ void CRemotePlayer::UpdateOnFootTargetPosition()
 			}
 			else
 			{
-				// If remote player is stationary / in-place attack (network move speed is zero):
-				if(m_ofSync.vecMoveSpeed.x == 0.0f && m_ofSync.vecMoveSpeed.y == 0.0f)
-				{
-					// Smoothly interpolate horizontal position directly to target (eliminates sliding)
-					matPlayer.pos.x += (m_vecOnFootTargetPos.x - matPlayer.pos.x) * 0.35f;
-					matPlayer.pos.y += (m_vecOnFootTargetPos.y - matPlayer.pos.y) * 0.35f;
+				CVector vecMoveSpeed = m_pPlayerPed->m_pPed->GetMoveSpeed();
+				if(m_vecPosOffset.x > 0.00001f)
+					vecMoveSpeed.x += (m_vecOnFootTargetPos.x - matPlayer.pos.x) * 0.1f;
+				if(m_vecPosOffset.y > 0.00001f)
+					vecMoveSpeed.y += (m_vecOnFootTargetPos.y - matPlayer.pos.y) * 0.1f;
+				if(m_vecPosOffset.z > 0.00001f)
+					vecMoveSpeed.z += (m_vecOnFootTargetPos.z - matPlayer.pos.z) * 0.1f;
 
-					// Only adjust vertical Z if noticeable difference, letting ground collision rest naturally
-					if(m_vecPosOffset.z > 0.15f)
-					{
-						matPlayer.pos.z += (m_vecOnFootTargetPos.z - matPlayer.pos.z) * 0.2f;
-					}
-
-					m_pPlayerPed->m_pPed->SetMatrix((CMatrix&)matPlayer);
-
-					// Zero horizontal velocity to eliminate sliding, preserve natural vertical ground contact
-					CVector vecSpeed = m_pPlayerPed->m_pPed->GetMoveSpeed();
-					vecSpeed.x = 0.0f;
-					vecSpeed.y = 0.0f;
-					m_pPlayerPed->m_pPed->SetVelocity(vecSpeed);
-				}
-				else
-				{
-					// Moving: set proportional velocity towards target with network speed base (no unbounded accumulation)
-					CVector vecMoveSpeed;
-					vecMoveSpeed.x = m_ofSync.vecMoveSpeed.x + (m_vecOnFootTargetPos.x - matPlayer.pos.x) * 0.5f;
-					vecMoveSpeed.y = m_ofSync.vecMoveSpeed.y + (m_vecOnFootTargetPos.y - matPlayer.pos.y) * 0.5f;
-					vecMoveSpeed.z = m_pPlayerPed->m_pPed->GetMoveSpeed().z; // preserve natural gravity
-					m_pPlayerPed->m_pPed->SetVelocity(vecMoveSpeed);
-				}
+				m_pPlayerPed->m_pPed->SetVelocity(vecMoveSpeed);
 			}
 		}
 	}
