@@ -737,9 +737,18 @@ void CLocalPlayer::SendOnFootFullSyncData()
 	ofSync.byteCurrentWeapon = (exKeys << 6) | ofSync.byteCurrentWeapon & 0x3F;
 	ofSync.byteCurrentWeapon ^= (ofSync.byteCurrentWeapon ^ m_pPlayerPed->GetCurrentWeapon()) & 0x3F;
 	ofSync.byteSpecialAction = GetSpecialAction();
-	ofSync.vecMoveSpeed.x = vecMoveSpeed.x;
-	ofSync.vecMoveSpeed.y = vecMoveSpeed.y;
-	ofSync.vecMoveSpeed.z = vecMoveSpeed.z;
+	if (lrAnalog == 0 && udAnalog == 0 && !m_surfData.bIsActive)
+	{
+		ofSync.vecMoveSpeed.x = 0.0f;
+		ofSync.vecMoveSpeed.y = 0.0f;
+		ofSync.vecMoveSpeed.z = vecMoveSpeed.z;
+	}
+	else
+	{
+		ofSync.vecMoveSpeed.x = vecMoveSpeed.x;
+		ofSync.vecMoveSpeed.y = vecMoveSpeed.y;
+		ofSync.vecMoveSpeed.z = vecMoveSpeed.z;
+	}
 
     ofSync.vecSurfOffsets.x = 0.0f;
     ofSync.vecSurfOffsets.y = 0.0f;
@@ -758,7 +767,7 @@ void CLocalPlayer::SendOnFootFullSyncData()
 	ofSync.dwAnimation = 0;
 	//_this->field_104 = 1;
 
-	if ((GetTickCount() - m_dwLastUpdateOnFootData) > 500 || memcmp(&m_ofSync, &ofSync, sizeof(ONFOOT_SYNC_DATA)))
+	if ((GetTickCount() - m_dwLastUpdateOnFootData) > 150 || memcmp(&m_ofSync, &ofSync, sizeof(ONFOOT_SYNC_DATA)))
 	{
 		m_dwLastUpdateOnFootData = GetTickCount();
 
