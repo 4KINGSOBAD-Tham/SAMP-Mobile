@@ -184,6 +184,7 @@ void CRemotePlayer::Process()
 		// ------ PROCESSED FOR ALL FRAMES ----- 
 		if (GetState() == PLAYER_STATE_ONFOOT && !m_pPlayerPed->IsInVehicle())
 		{
+			UpdateOnFootTargetPosition();
 			InterpolateAndRotate();
 			//SyncHead();
 			m_bPassengerDriveByMode = false;
@@ -384,9 +385,27 @@ void CRemotePlayer::UpdateOnFootTargetPosition()
 		m_vecPosOffset.y = FloatOffset(m_vecOnFootTargetPos.y, matPlayer.pos.y);
 		m_vecPosOffset.z = FloatOffset(m_vecOnFootTargetPos.z, matPlayer.pos.z);
 
+		// If remote player is stationary or attacking in place (zero move speed from network):
+		if (m_ofSync.vecMoveSpeed.x == 0.0f && m_ofSync.vecMoveSpeed.y == 0.0f)
+		{
+			if (m_vecPosOffset.x > 0.01f || m_vecPosOffset.y > 0.01f)
+			{
+				matPlayer.pos.x = m_vecOnFootTargetPos.x;
+				matPlayer.pos.y = m_vecOnFootTargetPos.y;
+				if (m_vecPosOffset.z > 0.15f)
+				{
+					matPlayer.pos.z = m_vecOnFootTargetPos.z;
+				}
+				m_pPlayerPed->m_pPed->SetMatrix((CMatrix&)matPlayer);
+				m_pPlayerPed->m_pPed->SetVelocity(CVector(0.0f, 0.0f, 0.0f));
+			}
+			return;
+		}
+
 		if(m_vecPosOffset.x > 0.00001f || m_vecPosOffset.y > 0.00001f || m_vecPosOffset.z > 0.00001f)
 		{
-			if(m_vecPosOffset.x > 2.0f || m_vecPosOffset.y > 2.0f || m_vecPosOffset.z > 1.0f)
+			// If distance error exceeds 1.0m (melee combat range), snap directly to target
+			if(m_vecPosOffset.x > 1.0f || m_vecPosOffset.y > 1.0f || m_vecPosOffset.z > 0.8f)
 			{
 				matPlayer.pos.x = m_vecOnFootTargetPos.x;
 				matPlayer.pos.y = m_vecOnFootTargetPos.y;
@@ -398,11 +417,11 @@ void CRemotePlayer::UpdateOnFootTargetPosition()
 			{
 				CVector vecMoveSpeed = m_pPlayerPed->m_pPed->GetMoveSpeed();
 				if(m_vecPosOffset.x > 0.00001f)
-					vecMoveSpeed.x += (m_vecOnFootTargetPos.x - matPlayer.pos.x) * 0.1f;
+					vecMoveSpeed.x += (m_vecOnFootTargetPos.x - matPlayer.pos.x) * 0.15f;
 				if(m_vecPosOffset.y > 0.00001f)
-					vecMoveSpeed.y += (m_vecOnFootTargetPos.y - matPlayer.pos.y) * 0.1f;
+					vecMoveSpeed.y += (m_vecOnFootTargetPos.y - matPlayer.pos.y) * 0.15f;
 				if(m_vecPosOffset.z > 0.00001f)
-					vecMoveSpeed.z += (m_vecOnFootTargetPos.z - matPlayer.pos.z) * 0.1f;
+					vecMoveSpeed.z += (m_vecOnFootTargetPos.z - matPlayer.pos.z) * 0.15f;
 
 				m_pPlayerPed->m_pPed->SetVelocity(vecMoveSpeed);
 			}
