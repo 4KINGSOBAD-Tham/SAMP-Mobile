@@ -72,12 +72,11 @@ void CRemotePlayer::Process()
 			// UPDATE CURRENT WEAPON
 			uint8_t byteCurrentWeapon = m_ofSync.byteCurrentWeapon & 0x3F;
 			if (m_pPlayerPed->m_pPed->IsAdded() && m_pPlayerPed->GetCurrentWeapon() != byteCurrentWeapon) {
-				//m_pPlayerPed->SetArmedWeapon(byteCurrentWeapon, false);
-
-				// double check
-				if (m_pPlayerPed->GetCurrentWeapon() != byteCurrentWeapon) {
+				if (byteCurrentWeapon == 0) {
+					m_pPlayerPed->SetArmedWeapon(0, false);
+				} else {
 					m_pPlayerPed->GiveWeapon(byteCurrentWeapon, 9999);
-					//m_pPlayerPed->SetArmedWeapon(byteCurrentWeapon, false);
+					m_pPlayerPed->SetArmedWeapon(byteCurrentWeapon, false);
 				}
 			}
 
@@ -90,7 +89,7 @@ void CRemotePlayer::Process()
 			}
 			else
 			{
-				//ProcessAnimation();
+				ProcessAnimation();
 				m_pPlayerPed->SetActionTrigger(ACTION_NORMAL);
 			}
 
@@ -149,9 +148,9 @@ void CRemotePlayer::Process()
 			uint8_t byteCurWeapon = m_icSync.byteCurrentWeapon & 0x3F;
 			if (m_pPlayerPed->GetCurrentWeapon() != byteCurWeapon)
 			{
-				m_pPlayerPed->SetArmedWeapon(byteCurWeapon, false);
-				if (m_pPlayerPed->GetCurrentWeapon() != byteCurWeapon)
-				{
+				if (byteCurWeapon == 0) {
+					m_pPlayerPed->SetArmedWeapon(0, false);
+				} else {
 					m_pPlayerPed->GiveWeapon(byteCurWeapon, 9999);
 					m_pPlayerPed->SetArmedWeapon(byteCurWeapon, false);
 				}
@@ -170,9 +169,9 @@ void CRemotePlayer::Process()
 			uint8_t byteCurrentWeapon = m_psSync.byteCurrentWeapon & 0x3F;
 			if(m_pPlayerPed->m_pPed->IsAdded() && m_pPlayerPed->GetCurrentWeapon() != byteCurrentWeapon)
 			{
-				m_pPlayerPed->SetArmedWeapon(byteCurrentWeapon, 0);
-				if(m_pPlayerPed->GetCurrentWeapon() != byteCurrentWeapon)
-				{
+				if (byteCurrentWeapon == 0) {
+					m_pPlayerPed->SetArmedWeapon(0, 0);
+				} else {
 					m_pPlayerPed->GiveWeapon(byteCurrentWeapon, 9999);
 					m_pPlayerPed->SetArmedWeapon(byteCurrentWeapon, 0);
 				}
@@ -1001,9 +1000,9 @@ void CRemotePlayer::PutInCurrentVehicle()
 			byteCurWeapon = byteCurWeapon & 0x3F;
 			if (m_pPlayerPed->GetCurrentWeapon() != byteCurWeapon)
 			{
-				m_pPlayerPed->SetArmedWeapon(byteCurWeapon, false);
-				if (m_pPlayerPed->GetCurrentWeapon() != byteCurWeapon)
-				{
+				if (byteCurWeapon == 0) {
+					m_pPlayerPed->SetArmedWeapon(0, false);
+				} else {
 					m_pPlayerPed->GiveWeapon(byteCurWeapon, 9999);
 					m_pPlayerPed->SetArmedWeapon(byteCurWeapon, false);
 				}
@@ -1578,18 +1577,8 @@ void CRemotePlayer::ProcessAnimation()
 					m_dwPlayingAnimIndex = animationData.sId;
 					m_pPlayerPed->PlayAnimationFromIndex(animationData.sId, fDelta,
 						animationData.cLoopA, animationData.cLoopX, animationData.cLoopY, animationData.cLoopF, 0);
+					m_bWasAnimSettedFlag = true;
 				}
-
-				if(m_dwPlayingAnimIndex)
-				{
-					if(!m_pPlayerPed->IsPlayingAnimation(m_dwPlayingAnimIndex))
-					{
-						m_pPlayerPed->PlayAnimationFromIndex(animationData.sId, fDelta,
-							animationData.cLoopA, animationData.cLoopX, animationData.cLoopY, animationData.cLoopF, 0);
-					}
-				}
-
-				m_bWasAnimSettedFlag = true;
 			}
 		}
 		if (flag && m_bWasAnimSettedFlag)

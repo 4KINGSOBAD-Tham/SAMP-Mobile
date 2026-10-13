@@ -354,40 +354,60 @@ static void InitAnimMap()
 	s_animHashMapInit = true;
 }
 
+static bool IsLocomotionAnim(const char* pAnimName)
+{
+	if (!pAnimName) return false;
+	if (strncasecmp(pAnimName, "PED:", 4) != 0) {
+		return false;
+	}
+	const char* name = pAnimName + 4;
+	if (!strncasecmp(name, "walk_", 5)) return true;
+	if (!strncasecmp(name, "run_", 4)) return true;
+	if (!strncasecmp(name, "sprint_", 7)) return true;
+	if (!strncasecmp(name, "swat_run", 8)) return true;
+	if (!strncasecmp(name, "idle", 4)) return true;
+	if (!strncasecmp(name, "jog_", 4)) return true;
+	if (!strncasecmp(name, "woman_", 6)) return true;
+	if (!strncasecmp(name, "fightidle", 9)) return true;
+	if (!strncasecmp(name, "fight2idle", 10)) return true;
+	if (!strncasecmp(name, "roadcross", 9)) return true;
+	if (!strncasecmp(name, "turn_", 5)) return true;
+	if (!strncasecmp(name, "player_sneak", 12)) return true;
+	return false;
+}
+
 uint32_t CPlayerPed::GetCurrentAnimationIndex()
 {
 	if (!m_pPed || !m_pPed->m_pRwClump) return 0;
 
 	InitAnimMap();
 
-	// 0x10 = ANIMATION_PARTIAL (melee attacks, fighting styles, partial anims)
-	CAnimBlendAssociation* pAssoc = RpAnimBlendClumpGetFirstAssociation(m_pPed->m_pRwClump, 0x10);
-	if (!pAssoc)
+	for (CAnimBlendAssociation* pAssoc = RpAnimBlendClumpGetFirstAssociation(m_pPed->m_pRwClump);
+		 pAssoc != nullptr;
+		 pAssoc = RpAnimBlendGetNextAssociation(pAssoc))
 	{
-		// 0x01 = ANIMATION_STARTED
-		pAssoc = RpAnimBlendClumpGetFirstAssociation(m_pPed->m_pRwClump, 0x01);
-	}
-	if (!pAssoc)
-	{
-		pAssoc = RpAnimBlendClumpGetFirstAssociation(m_pPed->m_pRwClump);
-	}
+		if (pAssoc->m_fBlendAmount <= 0.05f) continue;
+		if (!pAssoc->m_pHierarchy) continue;
 
-	if (pAssoc && pAssoc->m_pHierarchy)
-	{
 		auto it = s_animHashMap.find(pAssoc->m_pHierarchy->m_hashKey);
-		if (it != s_animHashMap.end())
-		{
-			ANIMATION_DATA animData;
-			animData.iValue = 0;
-			animData.sId = (unsigned short)it->second;
-			animData.cFrameDelta = (unsigned char)(pAssoc->m_fBlendDelta > 0.0f ? (int)pAssoc->m_fBlendDelta : 4);
-			animData.cLoopA = pAssoc->IsRepeating() ? 1 : 0;
-			animData.cLoopX = pAssoc->HasXTranslation() ? 1 : 0;
-			animData.cLoopY = pAssoc->HasYTranslation() ? 1 : 0;
-			animData.cLoopF = 0;
-			animData.cTime = 0;
-			return animData.iValue;
-		}
+		if (it == s_animHashMap.end()) continue;
+
+		int idx = it->second - 1;
+		const char* pEntry = GetAnimByIdx(idx);
+		if (!pEntry) continue;
+
+		if (IsLocomotionAnim(pEntry)) continue;
+
+		ANIMATION_DATA animData;
+		animData.iValue = 0;
+		animData.sId = (unsigned short)it->second;
+		animData.cFrameDelta = (unsigned char)(pAssoc->m_fBlendDelta > 0.0f ? (int)pAssoc->m_fBlendDelta : 4);
+		animData.cLoopA = pAssoc->IsRepeating() ? 1 : 0;
+		animData.cLoopX = pAssoc->HasXTranslation() ? 1 : 0;
+		animData.cLoopY = pAssoc->HasYTranslation() ? 1 : 0;
+		animData.cLoopF = 0;
+		animData.cTime = 0;
+		return animData.iValue;
 	}
 
 	return 0;
@@ -554,6 +574,8 @@ void CPlayerPed::GiveWeapon(int iWeaponId, int iAmmo)
 
 void CPlayerPed::SetArmedWeapon(uint8_t weapon, bool unk)
 {
+	if (!m_pPed) return;
+	CHook::CallFunction<void>(g_libGTASA + (VER_x32 ? 0x004A521C + 1 : 0x59B86C), m_pPed, (int)weapon);
 }
 // 0.3.7
 void CPlayerPed::SetTargetRotation(float fRotation)
@@ -2144,7 +2166,8 @@ void CPlayerPed::ProcessCuffAndCarry()
 
 void CPlayerPed::SetCurrentWeapon(uint8_t weaponType)
 {
-	((int(*)(uintptr_t, uint8_t))(g_libGTASA + 0x4A51AC + 1))((uintptr_t)m_pPed, weaponType);
+	if (!m_pPed) return;
+	CHook::CallFunction<void>(g_libGTASA + (VER_x32 ? 0x004A521C + 1 : 0x59B86C), m_pPed, (int)weaponType);
 }
 
 float CPlayerPed::GetDistanceFromVehicle(CVehicle *pVehicle)
