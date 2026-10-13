@@ -379,35 +379,43 @@ static bool IsLocomotionAnim(const char* pAnimName)
 uint32_t CPlayerPed::GetCurrentAnimationIndex()
 {
 	if (!m_pPed || !m_pPed->m_pRwClump) return 0;
+	if (m_dwGTAId && !GamePool_Ped_GetAt(m_dwGTAId)) return 0;
 
 	InitAnimMap();
 
-	for (CAnimBlendAssociation* pAssoc = RpAnimBlendClumpGetFirstAssociation(m_pPed->m_pRwClump);
-		 pAssoc != nullptr;
-		 pAssoc = RpAnimBlendGetNextAssociation(pAssoc))
+	// 1. Check for partial animations first (melee attacks, fight styles, hits, damage)
+	CAnimBlendAssociation* pAssoc = RpAnimBlendClumpGetFirstAssociation(m_pPed->m_pRwClump, 0x10);
+	if (!pAssoc)
 	{
-		if (pAssoc->m_fBlendAmount <= 0.05f) continue;
-		if (!pAssoc->m_pHierarchy) continue;
+		// 2. Check for other started animations (falls, knockdowns, getups, special anims)
+		pAssoc = RpAnimBlendClumpGetFirstAssociation(m_pPed->m_pRwClump, 0x01);
+	}
+
+	if (pAssoc && (uintptr_t)pAssoc > 0x10000 && pAssoc->m_pHierarchy && (uintptr_t)pAssoc->m_pHierarchy > 0x10000)
+	{
+		if (pAssoc->m_fBlendAmount <= 0.05f) return 0;
 
 		auto it = s_animHashMap.find(pAssoc->m_pHierarchy->m_hashKey);
-		if (it == s_animHashMap.end()) continue;
+		if (it != s_animHashMap.end())
+		{
+			int idx = it->second - 1;
+			const char* pEntry = GetAnimByIdx(idx);
+			if (pEntry && IsLocomotionAnim(pEntry))
+			{
+				return 0;
+			}
 
-		int idx = it->second - 1;
-		const char* pEntry = GetAnimByIdx(idx);
-		if (!pEntry) continue;
-
-		if (IsLocomotionAnim(pEntry)) continue;
-
-		ANIMATION_DATA animData;
-		animData.iValue = 0;
-		animData.sId = (unsigned short)it->second;
-		animData.cFrameDelta = (unsigned char)(pAssoc->m_fBlendDelta > 0.0f ? (int)pAssoc->m_fBlendDelta : 4);
-		animData.cLoopA = pAssoc->IsRepeating() ? 1 : 0;
-		animData.cLoopX = pAssoc->HasXTranslation() ? 1 : 0;
-		animData.cLoopY = pAssoc->HasYTranslation() ? 1 : 0;
-		animData.cLoopF = 0;
-		animData.cTime = 0;
-		return animData.iValue;
+			ANIMATION_DATA animData;
+			animData.iValue = 0;
+			animData.sId = (unsigned short)it->second;
+			animData.cFrameDelta = (unsigned char)(pAssoc->m_fBlendDelta > 0.0f ? (int)pAssoc->m_fBlendDelta : 4);
+			animData.cLoopA = pAssoc->IsRepeating() ? 1 : 0;
+			animData.cLoopX = pAssoc->HasXTranslation() ? 1 : 0;
+			animData.cLoopY = pAssoc->HasYTranslation() ? 1 : 0;
+			animData.cLoopF = 0;
+			animData.cTime = 0;
+			return animData.iValue;
+		}
 	}
 
 	return 0;
