@@ -1377,19 +1377,19 @@ void CPlayerPed::ProcessBulletData(BULLET_DATA *btData)
 								float fBulletDmg = 25.0f;
 								switch (wId)
 								{
-									case WEAPON_COLT45: fBulletDmg = 25.0f; break;
-									case WEAPON_SILENCED: fBulletDmg = 13.2f; break;
-									case WEAPON_DEAGLE: fBulletDmg = 46.2f; break;
+									case WEAPON_PISTOL: fBulletDmg = 25.0f; break;
+									case WEAPON_PISTOL_SILENCED: fBulletDmg = 13.2f; break;
+									case WEAPON_DESERT_EAGLE: fBulletDmg = 46.2f; break;
 									case WEAPON_SHOTGUN: fBulletDmg = 30.0f; break;
-									case WEAPON_SAWEDOFF: fBulletDmg = 30.0f; break;
-									case WEAPON_SHOTGSPA: fBulletDmg = 40.0f; break;
-									case WEAPON_UZI: fBulletDmg = 6.6f; break;
+									case WEAPON_SAWNOFF_SHOTGUN: fBulletDmg = 30.0f; break;
+									case WEAPON_SPAS12_SHOTGUN: fBulletDmg = 40.0f; break;
+									case WEAPON_MICRO_UZI: fBulletDmg = 6.6f; break;
 									case WEAPON_MP5: fBulletDmg = 8.25f; break;
 									case WEAPON_AK47: fBulletDmg = 9.9f; break;
 									case WEAPON_M4: fBulletDmg = 9.9f; break;
 									case WEAPON_TEC9: fBulletDmg = 6.6f; break;
-									case WEAPON_RIFLE: fBulletDmg = 24.75f; break;
-									case WEAPON_SNIPER: fBulletDmg = 41.25f; break;
+									case WEAPON_COUNTRYRIFLE: fBulletDmg = 24.75f; break;
+									case WEAPON_SNIPERRIFLE: fBulletDmg = 41.25f; break;
 									case WEAPON_MINIGUN: fBulletDmg = 46.2f; break;
 									default: fBulletDmg = 20.0f; break;
 								}
