@@ -809,10 +809,13 @@ bool ComputeDamageResponse(CPedDamageResponseCalculator* calculator, CPedGTA* pP
 	if (isLocalPed)
 	{
 		PlayerID = FindPlayerIDFromGtaPtr(pDamager);
-		pLocalPlayer->SendTakeDamageEvent(PlayerID,
-										  calculator->m_fDamageFactor,
-										  weaponType,
-										  pedPieceType);
+		if (pDamager && pDamager != pGamePed && PlayerID != INVALID_PLAYER_ID && PlayerID != pPlayerPool->GetLocalPlayerID())
+		{
+			pLocalPlayer->SendTakeDamageEvent(PlayerID,
+											  calculator->m_fDamageFactor,
+											  weaponType,
+											  pedPieceType);
+		}
 	}
 	else
 	{

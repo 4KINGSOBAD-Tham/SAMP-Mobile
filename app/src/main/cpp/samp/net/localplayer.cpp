@@ -1846,7 +1846,7 @@ void CLocalPlayer::SendTakeDamageEvent(PLAYERID PlayerID, float fDamageFactor, i
 	if (fDamageFactor < 1.0f) fDamageFactor = 1.0f;
 
 	RakNet::BitStream bsSend;
-	bsSend.Write(false); // false = TakeDamage (I took damage)
+	bsSend.Write(true); // true = TakeDamage (take = 1: sender took damage)
 	bsSend.Write((uint16_t)PlayerID);
 	bsSend.Write((float)fDamageFactor);
 	bsSend.Write((uint32_t)weaponType);
@@ -1875,7 +1875,7 @@ void CLocalPlayer::SendGiveDamageEvent(PLAYERID PlayerID, float fDamageFactor, i
 	if (fDamageFactor < 1.0f) fDamageFactor = 1.0f;
 
 	RakNet::BitStream bsSend;
-	bsSend.Write(true); // true = GiveDamage (I dealt damage to PlayerID)
+	bsSend.Write(false); // false = GiveDamage (take = 0: sender dealt damage to PlayerID)
 	bsSend.Write((uint16_t)PlayerID);
 	bsSend.Write((float)fDamageFactor);
 	bsSend.Write((uint32_t)weaponType);
