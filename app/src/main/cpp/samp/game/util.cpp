@@ -1927,6 +1927,7 @@ int GetVehicleSubtype(CVehicleGTA* pGtaVehicle)
 }
 
 #include "Models/ModelInfo.h"
+#include "Streaming.h"
 uintptr_t GetModelInfoByID(int iModelID)
 {
 	if (iModelID < 0 || iModelID > 20000) {
