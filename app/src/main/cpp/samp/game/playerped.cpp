@@ -1367,44 +1367,6 @@ void CPlayerPed::ProcessBulletData(BULLET_DATA *btData)
 						bsBullet.Write((char)ID_BULLET_SYNC);
 						bsBullet.Write((char*)&btSync, sizeof(BULLET_SYNC_DATA));
 						pNetGame->GetRakClient()->Send(&bsBullet, PacketPriority::HIGH_PRIORITY, PacketReliability::UNRELIABLE_SEQUENCED, 0);
-
-						if (byteHitType == BULLET_HIT_TYPE_PLAYER && InstanceID != INVALID_PLAYER_ID)
-						{
-							CPlayerPool* pPool = pNetGame->GetPlayerPool();
-							if (pPool && pPool->GetLocalPlayer())
-							{
-								uint8_t wId = pLocalPlayerPed->GetCurrentWeapon();
-								float fBulletDmg = 25.0f;
-								switch (wId)
-								{
-									case WEAPON_PISTOL: fBulletDmg = 25.0f; break;
-									case WEAPON_PISTOL_SILENCED: fBulletDmg = 13.2f; break;
-									case WEAPON_DESERT_EAGLE: fBulletDmg = 46.2f; break;
-									case WEAPON_SHOTGUN: fBulletDmg = 30.0f; break;
-									case WEAPON_SAWNOFF_SHOTGUN: fBulletDmg = 30.0f; break;
-									case WEAPON_SPAS12_SHOTGUN: fBulletDmg = 40.0f; break;
-									case WEAPON_MICRO_UZI: fBulletDmg = 6.6f; break;
-									case WEAPON_MP5: fBulletDmg = 8.25f; break;
-									case WEAPON_AK47: fBulletDmg = 9.9f; break;
-									case WEAPON_M4: fBulletDmg = 9.9f; break;
-									case WEAPON_TEC9: fBulletDmg = 6.6f; break;
-									case WEAPON_COUNTRYRIFLE: fBulletDmg = 24.75f; break;
-									case WEAPON_SNIPERRIFLE: fBulletDmg = 41.25f; break;
-									case WEAPON_MINIGUN: fBulletDmg = 46.2f; break;
-									default: fBulletDmg = 20.0f; break;
-								}
-								pPool->GetLocalPlayer()->SendGiveDamageEvent(InstanceID, fBulletDmg, wId, PED_PIECE_TORSO);
-							}
-						}
-						else if (byteHitType == 2 /* BULLET_HIT_TYPE_ACTOR */ && InstanceID != INVALID_PLAYER_ID)
-						{
-							CPlayerPool* pPool = pNetGame->GetPlayerPool();
-							if (pPool && pPool->GetLocalPlayer())
-							{
-								uint8_t wId = pLocalPlayerPed->GetCurrentWeapon();
-								pPool->GetLocalPlayer()->SendGiveDamageActorEvent(InstanceID, 25.0f, wId, PED_PIECE_TORSO);
-							}
-						}
 					}
 				}
 			}

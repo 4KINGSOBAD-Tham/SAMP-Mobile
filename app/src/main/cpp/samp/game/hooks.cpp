@@ -768,92 +768,79 @@ bool CBulletInfo_AddBullet_hook(CEntityGTA* creator, int weaponType, CVector pos
 struct CPedDamageResponseCalculator
 {
     CPedGTA* m_pDamager;
-	float m_fDamageFactor;
-	int m_weaponType;
-	int m_pedPieceType;
+    float m_fDamageFactor;
+    int m_pedPieceType;
+    int m_weaponType;
 };
 #pragma pack(pop)
 // 0.3.7
 bool ComputeDamageResponse(CPedDamageResponseCalculator* calculator, CPedGTA* pPed)
 {
     CPedGTA* pGamePed = GamePool_FindPlayerPed();
-	bool isLocalPed = false;
+    bool isLocalPed = false;
 
-	if (!pNetGame) return false;
+    if (!pNetGame) return false;
 
     CPedGTA* pDamager = calculator->m_pDamager;
+    //if (pDamager != pGamePed && IsValidGamePed(pGamePed)) /* CCivilianPed */
+    //	return true;
 
-	if (pPed == pGamePed) {
-		isLocalPed = true;
-	}
-	else if (pDamager != pGamePed) {
-		return false;
-	}
+    if (pPed == pGamePed) {
+        isLocalPed = true;
+    }
+    else if (pDamager != pGamePed) {
+        return false;
+    }
 
-	CPlayerPool* pPlayerPool = pNetGame->GetPlayerPool();
-	if (!pPlayerPool) return false;
-	CLocalPlayer* pLocalPlayer = pPlayerPool->GetLocalPlayer();
-	if (!pLocalPlayer) return false;
-	PLAYERID PlayerID = INVALID_PLAYER_ID;
+    CPlayerPool* pPlayerPool = pNetGame->GetPlayerPool();
+    CLocalPlayer* pLocalPlayer = pPlayerPool->GetLocalPlayer();
+    PLAYERID PlayerID;
 
-	int weaponType = calculator->m_weaponType;
-	if (weaponType < 0 || weaponType > 55) {
-		weaponType = pLocalPlayer->GetPlayerPed() ? pLocalPlayer->GetPlayerPed()->GetCurrentWeapon() : 0;
-	}
+    if (isLocalPed)
+    {
+        PlayerID = FindPlayerIDFromGtaPtr(pDamager);
+        pLocalPlayer->SendTakeDamageEvent(PlayerID,
+                                          calculator->m_fDamageFactor,
+                                          calculator->m_weaponType,
+                                          calculator->m_pedPieceType);
+    }
+    else
+    {
+        PlayerID = FindPlayerIDFromGtaPtr(pPed);
+        if (PlayerID != INVALID_PLAYER_ID)
+        {
+            pLocalPlayer->SendGiveDamageEvent(PlayerID,
+                                              calculator->m_fDamageFactor,
+                                              calculator->m_weaponType,
+                                              calculator->m_pedPieceType);
+            if (pPlayerPool->GetAt(PlayerID)->IsNPC())
+                return true;
+        }
+        else
+        {
+            PLAYERID ActorID = FindActorIDFromGtaPtr(pPed);
+            if (ActorID != INVALID_PLAYER_ID) {
+                pLocalPlayer->SendGiveDamageEvent(ActorID,
+                                                  calculator->m_fDamageFactor,
+                                                  calculator->m_weaponType,
+                                                  calculator->m_pedPieceType);
+                return true;
+            }
+        }
+    }
 
-	int pedPieceType = calculator->m_pedPieceType;
-	if (pedPieceType <= 0 || pedPieceType > 9) {
-		pedPieceType = PED_PIECE_TORSO;
-	}
 
-	if (isLocalPed)
-	{
-		PlayerID = FindPlayerIDFromGtaPtr(pDamager);
-		if (pDamager && pDamager != pGamePed && PlayerID != INVALID_PLAYER_ID && PlayerID != pPlayerPool->GetLocalPlayerID())
-		{
-			pLocalPlayer->SendTakeDamageEvent(PlayerID,
-											  calculator->m_fDamageFactor,
-											  weaponType,
-											  pedPieceType);
-		}
-	}
-	else
-	{
-		PlayerID = FindPlayerIDFromGtaPtr(pPed);
-		if (PlayerID != INVALID_PLAYER_ID)
-		{
-			pLocalPlayer->SendGiveDamageEvent(PlayerID,
-											  calculator->m_fDamageFactor,
-											  weaponType,
-											  pedPieceType);
-			if (pPlayerPool->GetAt(PlayerID)->IsNPC())
-				return true;
-		}
-		else
-		{
-			PLAYERID ActorID = FindActorIDFromGtaPtr(pPed);
-			if (ActorID != INVALID_PLAYER_ID) {
-				pLocalPlayer->SendGiveDamageActorEvent(ActorID,
-												  calculator->m_fDamageFactor,
-												  weaponType,
-												  pedPieceType);
-				return true;
-			}
-		}
-	}
+    // :check_friendly_fire
+    if (!pNetGame->m_pNetSet->bFriendlyFire)
+        return false;
+    uint8_t byteTeam = pPlayerPool->GetLocalPlayer()->m_byteTeam;
+    if (byteTeam == NO_TEAM ||
+        PlayerID == INVALID_PLAYER_ID ||
+        pPlayerPool->GetAt(PlayerID)->m_byteTeam != byteTeam) {
+        return false;
+    }
 
-	// :check_friendly_fire
-	if (!pNetGame->m_pNetSet->bFriendlyFire)
-		return false;
-	uint8_t byteTeam = pLocalPlayer->m_byteTeam;
-	if (byteTeam == NO_TEAM ||
-		PlayerID == INVALID_PLAYER_ID ||
-		!pPlayerPool->GetSlotState(PlayerID) ||
-		pPlayerPool->GetAt(PlayerID)->m_byteTeam != byteTeam) {
-		return false;
-	}
-
-	return true;
+    return true;
 }
 
 // 0.3.7

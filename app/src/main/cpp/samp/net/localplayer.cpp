@@ -343,89 +343,6 @@ bool CLocalPlayer::Process()
                 }
             }
 
-            // Melee proximity hit detection (ensures Mobile punches hit PC players reliably)
-            if (m_pPlayerPed && m_pPlayerPed->m_pPed && !m_pPlayerPed->IsDead())
-            {
-                uint8_t curWeapon = m_pPlayerPed->GetCurrentWeapon();
-                if (curWeapon <= 15) // Melee weapons & fist
-                {
-                    static uint32_t s_dwLastAttackTouchTick = 0;
-                    uint32_t dwNow = GetTickCount();
-                    if (IsAttackWidgetTouched())
-                    {
-                        s_dwLastAttackTouchTick = dwNow;
-                    }
-
-                    bool bAttacking = (dwNow - s_dwLastAttackTouchTick) < 500 ||
-                                      LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] ||
-                                      (m_pPlayerPed->m_pPed->m_nPedState == PEDSTATE_ATTACK || m_pPlayerPed->m_pPed->m_nPedState == PEDSTATE_FIGHT);
-
-                    if (bAttacking)
-                    {
-                        static uint32_t s_dwLastMeleeAttackTick = 0;
-                        if ((dwNow - s_dwLastMeleeAttackTick) >= 300)
-                        {
-                            CPlayerPool* pPlayerPool = pNetGame ? pNetGame->GetPlayerPool() : nullptr;
-                            if (pPlayerPool)
-                            {
-                                const CVector& localPos = m_pPlayerPed->m_pPed->GetPosition();
-                                float fCurrentRot = m_pPlayerPed->m_pPed->m_fCurrentRotation;
-                                float fForwardX = -sinf(fCurrentRot);
-                                float fForwardY = cosf(fCurrentRot);
-
-                                PLAYERID targetId = INVALID_PLAYER_ID;
-                                float fMinDist = 3.0f;
-
-                                for (PLAYERID i = 0; i < MAX_PLAYERS; i++)
-                                {
-                                    if (i == pPlayerPool->GetLocalPlayerID()) continue;
-                                    if (!pPlayerPool->GetSlotState(i)) continue;
-                                    CRemotePlayer* pRemotePlayer = pPlayerPool->GetAt(i);
-                                    if (!pRemotePlayer) continue;
-                                    CPlayerPed* pRemotePed = pRemotePlayer->GetPlayerPed();
-                                    if (!pRemotePed || !pRemotePed->m_pPed || pRemotePed->IsDead()) continue;
-
-                                    const CVector& remotePos = pRemotePed->m_pPed->GetPosition();
-                                    float dx = remotePos.x - localPos.x;
-                                    float dy = remotePos.y - localPos.y;
-                                    float dz = remotePos.z - localPos.z;
-
-                                    if (fabsf(dz) > 2.0f) continue;
-
-                                    float dist2D = sqrtf(dx * dx + dy * dy);
-                                    if (dist2D < fMinDist)
-                                    {
-                                        float dot = (dx * fForwardX + dy * fForwardY) / (dist2D > 0.001f ? dist2D : 1.0f);
-                                        // If within intimate melee range (1.8m), always hit. If up to 3.0m, allow wide forward angle.
-                                        if (dist2D <= 1.8f || dot > -0.4f)
-                                        {
-                                            fMinDist = dist2D;
-                                            targetId = i;
-                                        }
-                                    }
-                                }
-
-                                if (targetId != INVALID_PLAYER_ID)
-                                {
-                                    s_dwLastMeleeAttackTick = dwNow;
-                                    float fDamage = 3.3f;
-                                    switch (curWeapon)
-                                    {
-                                        case 0: fDamage = 3.3f; break; // Fist
-                                        case 1: fDamage = 4.62f; break; // Brass knuckles
-                                        case 4: fDamage = 6.6f; break; // Knife
-                                        case 5: fDamage = 5.28f; break; // Bat
-                                        case 8: fDamage = 5.28f; break; // Katana
-                                        case 9: fDamage = 9.9f; break; // Chainsaw
-                                        default: fDamage = 4.62f; break;
-                                    }
-                                    SendGiveDamageEvent(targetId, fDamage, curWeapon, PED_PIECE_TORSO);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
 
 			m_bPassengerDriveByMode = false;
 		}
@@ -1838,66 +1755,40 @@ void CLocalPlayer::SendExitVehicleNotification(VEHICLEID VehicleID)
 // 0.3.7
 void CLocalPlayer::SendTakeDamageEvent(PLAYERID PlayerID, float fDamageFactor, int weaponType, int pedPieceType)
 {
-	if (weaponType == 0) {
-		if (fDamageFactor < 3.0f) fDamageFactor = 3.3f;
-	} else if (weaponType <= 15) {
-		if (fDamageFactor < 4.0f) fDamageFactor = 4.62f;
-	}
-	if (fDamageFactor < 1.0f) fDamageFactor = 1.0f;
+	fDamageFactor *= 0.33f;
 
 	RakNet::BitStream bsSend;
-	bsSend.Write(true); // true = TakeDamage (take = 1: sender took damage)
-	bsSend.Write((uint16_t)PlayerID);
-	bsSend.Write((float)fDamageFactor);
-	bsSend.Write((uint32_t)weaponType);
-	bsSend.Write((uint32_t)pedPieceType);
+	bsSend.Write(true);
+	bsSend.Write(PlayerID);
+	bsSend.Write(fDamageFactor);
+	bsSend.Write(weaponType);
+	bsSend.Write(pedPieceType);
 
 	pNetGame->GetRakClient()->RPC(&RPC_PlayerGiveTakeDamage, &bsSend, HIGH_PRIORITY, RELIABLE_ORDERED, 0, false, UNASSIGNED_NETWORK_ID, nullptr);
 }
 // 0.3.7
 void CLocalPlayer::SendGiveDamageEvent(PLAYERID PlayerID, float fDamageFactor, int weaponType, int pedPieceType)
 {
-	static uint32_t s_dwLastDamageSentTick = 0;
-	static PLAYERID s_lastDamagePlayerID = INVALID_PLAYER_ID;
-	uint32_t dwNow = GetTickCount();
-	if (weaponType <= 15 && PlayerID == s_lastDamagePlayerID && (dwNow - s_dwLastDamageSentTick) < 250)
-	{
-		return;
-	}
-	s_dwLastDamageSentTick = dwNow;
-	s_lastDamagePlayerID = PlayerID;
-
-	if (weaponType == 0) {
-		if (fDamageFactor < 3.0f) fDamageFactor = 3.3f;
-	} else if (weaponType <= 15) {
-		if (fDamageFactor < 4.0f) fDamageFactor = 4.62f;
-	}
-	if (fDamageFactor < 1.0f) fDamageFactor = 1.0f;
+	fDamageFactor *= 0.33f;
 
 	RakNet::BitStream bsSend;
-	bsSend.Write(false); // false = GiveDamage (take = 0: sender dealt damage to PlayerID)
-	bsSend.Write((uint16_t)PlayerID);
-	bsSend.Write((float)fDamageFactor);
-	bsSend.Write((uint32_t)weaponType);
-	bsSend.Write((uint32_t)pedPieceType);
+	bsSend.Write(false);
+	bsSend.Write(PlayerID);
+	bsSend.Write(fDamageFactor);
+	bsSend.Write(weaponType);
+	bsSend.Write(pedPieceType);
 
 	pNetGame->GetRakClient()->RPC(&RPC_PlayerGiveTakeDamage, &bsSend, HIGH_PRIORITY, RELIABLE_ORDERED, 0, false, UNASSIGNED_NETWORK_ID, nullptr);
 }
 // 0.3.7
 void CLocalPlayer::SendGiveDamageActorEvent(PLAYERID ActorID, float fDamageFactor, int weaponType, int pedPieceType)
 {
-	if (weaponType == 0) {
-		if (fDamageFactor < 3.0f) fDamageFactor = 3.3f;
-	} else if (weaponType <= 15) {
-		if (fDamageFactor < 4.0f) fDamageFactor = 4.62f;
-	}
-	if (fDamageFactor < 1.0f) fDamageFactor = 1.0f;
-
 	RakNet::BitStream bsSend;
-	bsSend.Write((uint16_t)ActorID);
-	bsSend.Write((float)fDamageFactor);
-	bsSend.Write((uint32_t)weaponType);
-	bsSend.Write((uint32_t)pedPieceType);
+	bsSend.Write(false);
+	bsSend.Write(ActorID);
+	bsSend.Write(fDamageFactor);
+	bsSend.Write(weaponType);
+	bsSend.Write(pedPieceType);
 
 	pNetGame->GetRakClient()->RPC(&RPC_GiveDamageActor, &bsSend, HIGH_PRIORITY, RELIABLE_ORDERED, 0, false, UNASSIGNED_NETWORK_ID, nullptr);
 }
