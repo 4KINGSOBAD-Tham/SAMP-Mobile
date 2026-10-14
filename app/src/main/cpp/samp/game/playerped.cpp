@@ -93,18 +93,10 @@ CPlayerPed::CPlayerPed(int iNum, int iSkin, float fX, float fY, float fZ, float 
 
 	SetPlayerPedPtrRecord(iPlayerNum, m_pPed);
 
-    m_pPed->m_nPedType = static_cast<ePedType>(4); // PED_TYPE_CIVMALE so local player can melee hit it
-    m_pPed->bThisPedIsATargetPriority = true;
-    m_pPed->bNeverEverTargetThisPed = false;
     m_pPed->bDoesntDropWeaponsWhenDead = true;
-    m_pPed->m_bUsesCollision = 1;
-    m_pPed->physicalFlags.bMeleeProof = 0;
-    m_pPed->physicalFlags.bInvulnerable = 0;
-    m_pPed->physicalFlags.bCanBeCollidedWith = 1;
-    m_pPed->physicalFlags.bCollidable = 1;
-
 	ScriptCommand(&set_actor_immunities, m_dwGTAId, 0, 0, 1, 0, 0);
 	ScriptCommand(&set_actor_can_be_decapitated, m_dwGTAId, 0);
+    m_pPed->bNeverEverTargetThisPed = false;
 
 	if (pNetGame)
 	{
@@ -714,12 +706,13 @@ uint16_t CPlayerPed::GetKeys(uint16_t *lrAnalog, uint16_t *udAnalog, bool clear)
 	{
 		if (!IsInVehicle())
 		{
-			if (IsAttackWidgetTouched() ||
-				m_pPed->m_nPedState == PEDSTATE_ATTACK ||
-				m_pPed->m_nPedState == PEDSTATE_FIGHT ||
-				m_pPed->bFiringWeapon)
+			if (IsAttackWidgetTouched())
 			{
 				LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = true;
+			}
+			else
+			{
+				LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = false;
 			}
 		}
 	}

@@ -349,11 +349,7 @@ bool CLocalPlayer::Process()
                 uint8_t curWeapon = m_pPlayerPed->GetCurrentWeapon();
                 if (curWeapon <= 15) // Melee weapons & fist
                 {
-                    bool bAttacking = LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] ||
-                                      IsAttackWidgetTouched() ||
-                                      m_pPlayerPed->m_pPed->m_nPedState == PEDSTATE_ATTACK ||
-                                      m_pPlayerPed->m_pPed->m_nPedState == PEDSTATE_FIGHT ||
-                                      m_pPlayerPed->m_pPed->bFiringWeapon;
+                    bool bAttacking = IsAttackWidgetTouched() || LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE];
 
                     if (bAttacking)
                     {
@@ -1833,11 +1829,11 @@ void CLocalPlayer::SendTakeDamageEvent(PLAYERID PlayerID, float fDamageFactor, i
 	if (fDamageFactor < 1.0f) fDamageFactor = 1.0f;
 
 	RakNet::BitStream bsSend;
-	bsSend.Write(false); // false = TakeDamage (I received damage)
-	bsSend.Write((uint16_t)PlayerID);
-	bsSend.Write((float)fDamageFactor);
-	bsSend.Write((uint32_t)weaponType);
-	bsSend.Write((uint32_t)pedPieceType);
+	bsSend.Write(true);
+	bsSend.Write(PlayerID);
+	bsSend.Write(fDamageFactor);
+	bsSend.Write(weaponType);
+	bsSend.Write(pedPieceType);
 
 	pNetGame->GetRakClient()->RPC(&RPC_PlayerGiveTakeDamage, &bsSend, HIGH_PRIORITY, RELIABLE_ORDERED, 0, false, UNASSIGNED_NETWORK_ID, nullptr);
 }
@@ -1864,11 +1860,11 @@ void CLocalPlayer::SendGiveDamageEvent(PLAYERID PlayerID, float fDamageFactor, i
 	if (fDamageFactor < 1.0f) fDamageFactor = 1.0f;
 
 	RakNet::BitStream bsSend;
-	bsSend.Write(true); // true = GiveDamage (I dealt damage to PlayerID)
-	bsSend.Write((uint16_t)PlayerID);
-	bsSend.Write((float)fDamageFactor);
-	bsSend.Write((uint32_t)weaponType);
-	bsSend.Write((uint32_t)pedPieceType);
+	bsSend.Write(false);
+	bsSend.Write(PlayerID);
+	bsSend.Write(fDamageFactor);
+	bsSend.Write(weaponType);
+	bsSend.Write(pedPieceType);
 
 	pNetGame->GetRakClient()->RPC(&RPC_PlayerGiveTakeDamage, &bsSend, HIGH_PRIORITY, RELIABLE_ORDERED, 0, false, UNASSIGNED_NETWORK_ID, nullptr);
 }
