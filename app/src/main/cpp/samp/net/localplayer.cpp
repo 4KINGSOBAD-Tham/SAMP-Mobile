@@ -350,11 +350,21 @@ bool CLocalPlayer::Process()
                 static uint32_t s_dwLastMeleeAttackTick = 0;
                 uint32_t dwNow = GetTickCount();
 
-                bool bAttacking = IsAttackWidgetTouched() ||
-                                  LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] ||
-                                  (m_pPlayerPed->m_pPed && (m_pPlayerPed->m_pPed->m_nPedState == PEDSTATE_ATTACK ||
-                                                            m_pPlayerPed->m_pPed->m_nPedState == PEDSTATE_FIGHT ||
-                                                            m_pPlayerPed->m_pPed->bFiringWeapon));
+                bool bAttacking = (dwNow - g_dwLastLocalPlayerMeleeAttackTick < 400);
+                if (!bAttacking && m_pPlayerPed->m_pPed && m_pPlayerPed->m_pPed->m_pRwClump)
+                {
+                    CAnimBlendAssociation* pAssoc = RpAnimBlendClumpGetFirstAssociation(m_pPlayerPed->m_pPed->m_pRwClump, 0x10);
+                    if (pAssoc && pAssoc->m_fBlendAmount > 0.1f)
+                    {
+                        bAttacking = true;
+                    }
+                }
+                if (!bAttacking)
+                {
+                    bAttacking = IsAttackWidgetTouched() ||
+                                 (m_pPlayerPed->m_pPed && (m_pPlayerPed->m_pPed->m_nPedState == PEDSTATE_ATTACK ||
+                                                           m_pPlayerPed->m_pPed->m_nPedState == PEDSTATE_FIGHT));
+                }
 
                 if (bAttacking && (dwNow - s_dwLastMeleeAttackTick) >= 350)
                 {
@@ -367,7 +377,7 @@ bool CLocalPlayer::Process()
                         float fForwardY = cosf(fCurrentRot);
 
                         PLAYERID targetId = INVALID_PLAYER_ID;
-                        float fMinDist = 2.4f;
+                        float fMinDist = 2.8f;
 
                         for (PLAYERID i = 0; i < MAX_PLAYERS; i++)
                         {
@@ -383,13 +393,13 @@ bool CLocalPlayer::Process()
                             float dy = remotePos.y - localPos.y;
                             float dz = remotePos.z - localPos.z;
 
-                            if (fabsf(dz) > 1.8f) continue;
+                            if (fabsf(dz) > 2.0f) continue;
 
                             float dist2D = sqrtf(dx * dx + dy * dy);
                             if (dist2D < fMinDist)
                             {
                                 float dot = (dx * fForwardX + dy * fForwardY) / (dist2D > 0.001f ? dist2D : 1.0f);
-                                if (dist2D <= 1.2f || dot > 0.2f)
+                                if (dist2D <= 1.5f || dot > 0.15f)
                                 {
                                     fMinDist = dist2D;
                                     targetId = i;
@@ -415,13 +425,13 @@ bool CLocalPlayer::Process()
                                 float dx = actPos.x - localPos.x;
                                 float dy = actPos.y - localPos.y;
                                 float dz = actPos.z - localPos.z;
-                                if (fabsf(dz) > 1.8f) continue;
+                                if (fabsf(dz) > 2.0f) continue;
 
                                 float dist2D = sqrtf(dx * dx + dy * dy);
                                 if (dist2D < fMinDist)
                                 {
                                     float dot = (dx * fForwardX + dy * fForwardY) / (dist2D > 0.001f ? dist2D : 1.0f);
-                                    if (dist2D <= 1.2f || dot > 0.2f)
+                                    if (dist2D <= 1.5f || dot > 0.15f)
                                     {
                                         s_dwLastMeleeAttackTick = dwNow;
                                         float fMeleeDmg = GetWeaponDamage(curWeapon);

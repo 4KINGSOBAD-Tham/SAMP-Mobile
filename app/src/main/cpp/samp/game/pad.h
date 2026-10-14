@@ -37,5 +37,6 @@ VALIDATE_SIZE(PAD_KEYS, 24);
 
 extern PAD_KEYS LocalPlayerKeys;
 extern PAD_KEYS RemotePlayerKeys[PLAYER_PED_SLOTS];
+extern uint32_t g_dwLastLocalPlayerMeleeAttackTick;
 
 void HookCPad();

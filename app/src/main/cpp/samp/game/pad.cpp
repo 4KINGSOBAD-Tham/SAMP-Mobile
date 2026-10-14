@@ -14,6 +14,7 @@ extern uintptr_t dwCurPlayerActor;
 
 PAD_KEYS LocalPlayerKeys;
 PAD_KEYS RemotePlayerKeys[PLAYER_PED_SLOTS];
+uint32_t g_dwLastLocalPlayerMeleeAttackTick = 0;
 
 uint16_t(*CPad__GetPedWalkLeftRight)(uintptr_t thiz);
 uint16_t CPad__GetPedWalkLeftRight_hook(uintptr_t thiz)
@@ -198,6 +199,10 @@ uint32_t CPad__MeleeAttackJustDown_hook(uintptr_t thiz)
 	else
 	{
 		uint32_t dwResult = CPad__MeleeAttackJustDown(thiz);
+		if (dwResult != 0)
+		{
+			g_dwLastLocalPlayerMeleeAttackTick = GetTickCount();
+		}
 		LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = (dwResult != 0);
 		return dwResult;
 	}
@@ -217,6 +222,10 @@ uint32_t CPad__GetMeleeAttack_hook(uintptr_t thiz)
 	else
 	{
 		uint32_t dwResult = CPad__GetMeleeAttack(thiz);
+		if (dwResult != 0)
+		{
+			g_dwLastLocalPlayerMeleeAttackTick = GetTickCount();
+		}
 		LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = (dwResult != 0);
 		return dwResult;
 	}
@@ -494,6 +503,10 @@ bool CPad__GetWeapon_hook(uintptr_t thiz, CPedGTA* pPed)
 	else
 	{
 		bool bResult = CPad__GetWeapon(thiz, pPed);
+		if (bResult)
+		{
+			g_dwLastLocalPlayerMeleeAttackTick = GetTickCount();
+		}
 		LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = bResult;
 		return bResult;
 	}

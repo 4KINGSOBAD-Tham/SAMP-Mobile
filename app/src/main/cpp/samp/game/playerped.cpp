@@ -706,17 +706,24 @@ uint16_t CPlayerPed::GetKeys(uint16_t *lrAnalog, uint16_t *udAnalog, bool clear)
 	{
 		if (!IsInVehicle())
 		{
-			static uint32_t s_dwAttackUntilTick = 0;
 			uint32_t dwNow = GetTickCount();
 			if (IsAttackWidgetTouched())
 			{
-				s_dwAttackUntilTick = dwNow + 400;
+				g_dwLastLocalPlayerMeleeAttackTick = dwNow;
 			}
-			bool bIsAttacking = (dwNow < s_dwAttackUntilTick) ||
+			bool bIsAttacking = (dwNow - g_dwLastLocalPlayerMeleeAttackTick < 400) ||
 			                    (m_pPed->m_nPedState == PEDSTATE_ATTACK) ||
 			                    (m_pPed->m_nPedState == PEDSTATE_FIGHT) ||
 			                    (m_pPed->bFiringWeapon);
-			LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = bIsAttacking;
+			if (bIsAttacking)
+			{
+				LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = true;
+				uint8_t curWeapon = GetCurrentWeapon();
+				if (curWeapon <= 15)
+				{
+					LocalPlayerKeys.bKeys[ePadKeys::KEY_HANDBRAKE] = true;
+				}
+			}
 		}
 	}
 
