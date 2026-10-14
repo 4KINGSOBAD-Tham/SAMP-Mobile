@@ -700,21 +700,47 @@ uint8_t CPlayerPed::GetAdditionalKeys()
 	return byteRet;
 }
 
+bool CPlayerPed::IsMeleeAttacking()
+{
+	uint32_t dwNow = GetTickCount();
+	if (dwNow - g_dwLastLocalPlayerMeleeAttackTick < 400)
+	{
+		return true;
+	}
+
+	if (IsAttackWidgetTouched())
+	{
+		g_dwLastLocalPlayerMeleeAttackTick = dwNow;
+		return true;
+	}
+
+	if (m_pPed)
+	{
+		if (m_pPed->m_nPedState == PEDSTATE_ATTACK || m_pPed->m_nPedState == PEDSTATE_FIGHT || m_pPed->bFiringWeapon)
+		{
+			return true;
+		}
+
+		if (m_pPed->m_pRwClump)
+		{
+			CAnimBlendAssociation* pAssoc = RpAnimBlendClumpGetFirstAssociation(m_pPed->m_pRwClump, 0x10);
+			if (pAssoc && (uintptr_t)pAssoc > 0x10000 && pAssoc->m_fBlendAmount > 0.1f)
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 uint16_t CPlayerPed::GetKeys(uint16_t *lrAnalog, uint16_t *udAnalog, bool clear)
 {
 	if (m_pPed && m_pPed == GamePool_FindPlayerPed())
 	{
 		if (!IsInVehicle())
 		{
-			uint32_t dwNow = GetTickCount();
-			if (IsAttackWidgetTouched())
-			{
-				g_dwLastLocalPlayerMeleeAttackTick = dwNow;
-			}
-			bool bIsAttacking = (dwNow - g_dwLastLocalPlayerMeleeAttackTick < 400) ||
-			                    (m_pPed->m_nPedState == PEDSTATE_ATTACK) ||
-			                    (m_pPed->m_nPedState == PEDSTATE_FIGHT) ||
-			                    (m_pPed->bFiringWeapon);
+			bool bIsAttacking = IsMeleeAttacking();
 			if (bIsAttacking)
 			{
 				LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = true;

@@ -138,6 +138,7 @@ public:
 
 	void SetKeys(uint16_t lrAnalog, uint16_t udAnalog, uint16_t wKeys);
 	uint16_t GetKeys(uint16_t *lrAnalog, uint16_t *udAnalog, bool clear = true);
+	bool IsMeleeAttacking();
 
 	void CheckVehicleParachute();
 	void ProcessVehicleHorn();

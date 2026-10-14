@@ -350,21 +350,7 @@ bool CLocalPlayer::Process()
                 static uint32_t s_dwLastMeleeAttackTick = 0;
                 uint32_t dwNow = GetTickCount();
 
-                bool bAttacking = (dwNow - g_dwLastLocalPlayerMeleeAttackTick < 400);
-                if (!bAttacking && m_pPlayerPed->m_pPed && m_pPlayerPed->m_pPed->m_pRwClump)
-                {
-                    CAnimBlendAssociation* pAssoc = RpAnimBlendClumpGetFirstAssociation(m_pPlayerPed->m_pPed->m_pRwClump, 0x10);
-                    if (pAssoc && pAssoc->m_fBlendAmount > 0.1f)
-                    {
-                        bAttacking = true;
-                    }
-                }
-                if (!bAttacking)
-                {
-                    bAttacking = IsAttackWidgetTouched() ||
-                                 (m_pPlayerPed->m_pPed && (m_pPlayerPed->m_pPed->m_nPedState == PEDSTATE_ATTACK ||
-                                                           m_pPlayerPed->m_pPed->m_nPedState == PEDSTATE_FIGHT));
-                }
+                bool bAttacking = m_pPlayerPed ? m_pPlayerPed->IsMeleeAttacking() : (dwNow - g_dwLastLocalPlayerMeleeAttackTick < 400);
 
                 if (bAttacking && (dwNow - s_dwLastMeleeAttackTick) >= 350)
                 {
