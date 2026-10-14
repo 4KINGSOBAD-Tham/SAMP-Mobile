@@ -22,6 +22,9 @@ extern int iNetModeSendMultiplier;
 bool m_bWasInCar = false;
 static uint32_t s_dwDeathTick = 0;
 
+#include <math.h>
+
+extern bool IsAttackWidgetTouched();
 extern bool bUsedPlayerSlots[];
 
 uint32_t dwEnterVehTimeElasped = -1;
@@ -336,6 +339,75 @@ bool CLocalPlayer::Process()
                     {
                         SendAimSyncData();
                         m_dwLastSendAimSyncTick = dwThisTick;
+                    }
+                }
+            }
+
+            // Melee proximity hit detection (ensures Mobile punches hit PC players reliably)
+            if (m_pPlayerPed && m_pPlayerPed->m_pPed && !m_pPlayerPed->IsDead())
+            {
+                uint8_t curWeapon = m_pPlayerPed->GetCurrentWeapon();
+                if (curWeapon <= 15) // Melee weapons & fist
+                {
+                    bool bAttacking = LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] ||
+                                      IsAttackWidgetTouched() ||
+                                      m_pPlayerPed->m_pPed->m_nPedState == PEDSTATE_ATTACK ||
+                                      m_pPlayerPed->m_pPed->m_nPedState == PEDSTATE_FIGHT ||
+                                      m_pPlayerPed->m_pPed->bFiringWeapon;
+
+                    if (bAttacking)
+                    {
+                        static uint32_t s_dwLastMeleeAttackTick = 0;
+                        uint32_t dwNow = GetTickCount();
+                        if ((dwNow - s_dwLastMeleeAttackTick) >= 380)
+                        {
+                            CPlayerPool* pPlayerPool = pNetGame ? pNetGame->GetPlayerPool() : nullptr;
+                            if (pPlayerPool)
+                            {
+                                const CVector& localPos = m_pPlayerPed->m_pPed->GetPosition();
+                                float fCurrentRot = m_pPlayerPed->m_pPed->m_fCurrentRotation;
+                                float fForwardX = -sinf(fCurrentRot);
+                                float fForwardY = cosf(fCurrentRot);
+
+                                PLAYERID targetId = INVALID_PLAYER_ID;
+                                float fMinDist = 2.4f;
+
+                                for (PLAYERID i = 0; i < MAX_PLAYERS; i++)
+                                {
+                                    if (i == pPlayerPool->GetLocalPlayerID()) continue;
+                                    if (!pPlayerPool->GetSlotState(i)) continue;
+                                    CRemotePlayer* pRemotePlayer = pPlayerPool->GetAt(i);
+                                    if (!pRemotePlayer) continue;
+                                    CPlayerPed* pRemotePed = pRemotePlayer->GetPlayerPed();
+                                    if (!pRemotePed || !pRemotePed->m_pPed || pRemotePed->IsDead()) continue;
+
+                                    const CVector& remotePos = pRemotePed->m_pPed->GetPosition();
+                                    float dx = remotePos.x - localPos.x;
+                                    float dy = remotePos.y - localPos.y;
+                                    float dz = remotePos.z - localPos.z;
+
+                                    if (fabsf(dz) > 2.0f) continue;
+
+                                    float dist2D = sqrtf(dx * dx + dy * dy);
+                                    if (dist2D < fMinDist)
+                                    {
+                                        float dot = (dx * fForwardX + dy * fForwardY) / (dist2D > 0.001f ? dist2D : 1.0f);
+                                        if (dot > 0.1f)
+                                        {
+                                            fMinDist = dist2D;
+                                            targetId = i;
+                                        }
+                                    }
+                                }
+
+                                if (targetId != INVALID_PLAYER_ID)
+                                {
+                                    s_dwLastMeleeAttackTick = dwNow;
+                                    float fDamage = (curWeapon == 0) ? 3.3f : 4.62f;
+                                    SendGiveDamageEvent(targetId, fDamage, curWeapon, PED_PIECE_TORSO);
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -1772,6 +1844,16 @@ void CLocalPlayer::SendTakeDamageEvent(PLAYERID PlayerID, float fDamageFactor, i
 // 0.3.7
 void CLocalPlayer::SendGiveDamageEvent(PLAYERID PlayerID, float fDamageFactor, int weaponType, int pedPieceType)
 {
+	static uint32_t s_dwLastDamageSentTick = 0;
+	static PLAYERID s_lastDamagePlayerID = INVALID_PLAYER_ID;
+	uint32_t dwNow = GetTickCount();
+	if (PlayerID == s_lastDamagePlayerID && (dwNow - s_dwLastDamageSentTick) < 300)
+	{
+		return;
+	}
+	s_dwLastDamageSentTick = dwNow;
+	s_lastDamagePlayerID = PlayerID;
+
 	if (weaponType == 0) {
 		if (fDamageFactor < 3.0f) fDamageFactor = 3.3f;
 	} else if (weaponType <= 15) {
