@@ -3,7 +3,7 @@
   "enable_anticheat": true,
   "server": {
     "name": "[TH] 4KING ROLEPLAY",
-    "ip": "192.168.1.106",
+    "ip": "192.168.1.114",
     "port": 7777,
     "online": true,
     "offline_message": "ปิดปรับปรุงเซิร์ฟเวอร์ชั่วคราว"

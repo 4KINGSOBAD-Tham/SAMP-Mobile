@@ -57,7 +57,7 @@ public class HomeFragment extends Fragment {
     private View mAnnouncementContainer;
 
     // Config defaults (updated remotely from security.json)
-    private String mServerAddress = "192.168.1.106";
+    private String mServerAddress = "192.168.1.114";
     private int mServerPort = 7777;
     private String mServerName = "[TH] 4KING ROLEPLAY";
     private boolean mIsServerOnline = false;
