@@ -399,14 +399,9 @@ bool CLocalPlayer::Process()
         m_pPlayerPed->FlushAttach();
         s_dwDeathTick = 0;
 
-		//if (sub_100AC660(_this->m_pPlayerPed))
-		//	sub_100AC670(_this->m_pPlayerPed, 0);
-
-		if (IsClearedToSpawn() && pNetGame->GetGameState() == GAMESTATE_CONNECTED)
+		if (m_bHasSpawnInfo && pNetGame->GetGameState() == GAMESTATE_CONNECTED)
 		{
-			if (m_pPlayerPed->GetHealth() > 0.0f) {
-				Spawn();
-			}
+			Spawn();
 		}
 		else
 		{
@@ -1756,7 +1751,14 @@ void CLocalPlayer::SendExitVehicleNotification(VEHICLEID VehicleID)
 // 0.3.7
 void CLocalPlayer::SendTakeDamageEvent(PLAYERID PlayerID, float fDamageFactor, int weaponType, int pedPieceType)
 {
-	fDamageFactor *= 0.33f;
+	if (weaponType == 0) {
+		if (fDamageFactor < 3.0f) fDamageFactor = 3.3f;
+	} else if (weaponType <= 15) {
+		if (fDamageFactor < 4.0f) fDamageFactor = 4.62f;
+	} else {
+		fDamageFactor *= 0.33f;
+	}
+	if (fDamageFactor < 1.0f) fDamageFactor = 1.0f;
 
 	RakNet::BitStream bsSend;
 	bsSend.Write(true);
@@ -1770,7 +1772,14 @@ void CLocalPlayer::SendTakeDamageEvent(PLAYERID PlayerID, float fDamageFactor, i
 // 0.3.7
 void CLocalPlayer::SendGiveDamageEvent(PLAYERID PlayerID, float fDamageFactor, int weaponType, int pedPieceType)
 {
-	fDamageFactor *= 0.33f;
+	if (weaponType == 0) {
+		if (fDamageFactor < 3.0f) fDamageFactor = 3.3f;
+	} else if (weaponType <= 15) {
+		if (fDamageFactor < 4.0f) fDamageFactor = 4.62f;
+	} else {
+		fDamageFactor *= 0.33f;
+	}
+	if (fDamageFactor < 1.0f) fDamageFactor = 1.0f;
 
 	RakNet::BitStream bsSend;
 	bsSend.Write(false);
@@ -1784,6 +1793,15 @@ void CLocalPlayer::SendGiveDamageEvent(PLAYERID PlayerID, float fDamageFactor, i
 // 0.3.7
 void CLocalPlayer::SendGiveDamageActorEvent(PLAYERID ActorID, float fDamageFactor, int weaponType, int pedPieceType)
 {
+	if (weaponType == 0) {
+		if (fDamageFactor < 3.0f) fDamageFactor = 3.3f;
+	} else if (weaponType <= 15) {
+		if (fDamageFactor < 4.0f) fDamageFactor = 4.62f;
+	} else {
+		fDamageFactor *= 0.33f;
+	}
+	if (fDamageFactor < 1.0f) fDamageFactor = 1.0f;
+
 	RakNet::BitStream bsSend;
 	bsSend.Write(false);
 	bsSend.Write(ActorID);

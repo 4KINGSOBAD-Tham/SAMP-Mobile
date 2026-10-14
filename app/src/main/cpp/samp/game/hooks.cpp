@@ -769,8 +769,8 @@ struct CPedDamageResponseCalculator
 {
     CPedGTA* m_pDamager;
 	float m_fDamageFactor;
-	int m_pedPieceType;
 	int m_weaponType;
+	int m_pedPieceType;
 };
 #pragma pack(pop)
 // 0.3.7
@@ -796,13 +796,23 @@ bool ComputeDamageResponse(CPedDamageResponseCalculator* calculator, CPedGTA* pP
 	if (!pLocalPlayer) return false;
 	PLAYERID PlayerID = INVALID_PLAYER_ID;
 
+	int weaponType = calculator->m_weaponType;
+	if (weaponType < 0 || weaponType > 55) {
+		weaponType = pLocalPlayer->GetPlayerPed() ? pLocalPlayer->GetPlayerPed()->GetCurrentWeapon() : 0;
+	}
+
+	int pedPieceType = calculator->m_pedPieceType;
+	if (pedPieceType <= 0 || pedPieceType > 9) {
+		pedPieceType = PED_PIECE_TORSO;
+	}
+
 	if (isLocalPed)
 	{
 		PlayerID = FindPlayerIDFromGtaPtr(pDamager);
 		pLocalPlayer->SendTakeDamageEvent(PlayerID,
 										  calculator->m_fDamageFactor,
-										  calculator->m_weaponType,
-										  calculator->m_pedPieceType);
+										  weaponType,
+										  pedPieceType);
 	}
 	else
 	{
@@ -811,8 +821,8 @@ bool ComputeDamageResponse(CPedDamageResponseCalculator* calculator, CPedGTA* pP
 		{
 			pLocalPlayer->SendGiveDamageEvent(PlayerID,
 											  calculator->m_fDamageFactor,
-											  calculator->m_weaponType,
-											  calculator->m_pedPieceType);
+											  weaponType,
+											  pedPieceType);
 			if (pPlayerPool->GetAt(PlayerID)->IsNPC())
 				return true;
 		}
@@ -822,8 +832,8 @@ bool ComputeDamageResponse(CPedDamageResponseCalculator* calculator, CPedGTA* pP
 			if (ActorID != INVALID_PLAYER_ID) {
 				pLocalPlayer->SendGiveDamageActorEvent(ActorID,
 												  calculator->m_fDamageFactor,
-												  calculator->m_weaponType,
-												  calculator->m_pedPieceType);
+												  weaponType,
+												  pedPieceType);
 				return true;
 			}
 		}

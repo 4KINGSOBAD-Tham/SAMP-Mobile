@@ -96,7 +96,7 @@ CPlayerPed::CPlayerPed(int iNum, int iSkin, float fX, float fY, float fZ, float 
     m_pPed->bDoesntDropWeaponsWhenDead = true;
 	ScriptCommand(&set_actor_immunities, m_dwGTAId, 0, 0, 1, 0, 0);
 	ScriptCommand(&set_actor_can_be_decapitated, m_dwGTAId, 0);
-    m_pPed->bNeverEverTargetThisPed = true;
+    m_pPed->bNeverEverTargetThisPed = false;
 
 	if (pNetGame)
 	{
