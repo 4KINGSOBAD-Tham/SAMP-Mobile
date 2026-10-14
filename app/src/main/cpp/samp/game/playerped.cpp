@@ -706,7 +706,13 @@ uint16_t CPlayerPed::GetKeys(uint16_t *lrAnalog, uint16_t *udAnalog, bool clear)
 	{
 		if (!IsInVehicle())
 		{
+			static uint32_t s_dwAttackUntilTick = 0;
+			uint32_t dwNow = GetTickCount();
 			if (IsAttackWidgetTouched())
+			{
+				s_dwAttackUntilTick = dwNow + 400;
+			}
+			if (dwNow < s_dwAttackUntilTick)
 			{
 				LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = true;
 			}

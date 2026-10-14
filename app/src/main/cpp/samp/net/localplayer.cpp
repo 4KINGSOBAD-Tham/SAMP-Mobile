@@ -349,12 +349,18 @@ bool CLocalPlayer::Process()
                 uint8_t curWeapon = m_pPlayerPed->GetCurrentWeapon();
                 if (curWeapon <= 15) // Melee weapons & fist
                 {
-                    bool bAttacking = IsAttackWidgetTouched() || LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE];
+                    static uint32_t s_dwLastAttackTouchTick = 0;
+                    uint32_t dwNow = GetTickCount();
+                    if (IsAttackWidgetTouched())
+                    {
+                        s_dwLastAttackTouchTick = dwNow;
+                    }
+
+                    bool bAttacking = (dwNow - s_dwLastAttackTouchTick) < 400;
 
                     if (bAttacking)
                     {
                         static uint32_t s_dwLastMeleeAttackTick = 0;
-                        uint32_t dwNow = GetTickCount();
                         if ((dwNow - s_dwLastMeleeAttackTick) >= 380)
                         {
                             CPlayerPool* pPlayerPool = pNetGame ? pNetGame->GetPlayerPool() : nullptr;
@@ -366,7 +372,7 @@ bool CLocalPlayer::Process()
                                 float fForwardY = cosf(fCurrentRot);
 
                                 PLAYERID targetId = INVALID_PLAYER_ID;
-                                float fMinDist = 2.4f;
+                                float fMinDist = 2.8f;
 
                                 for (PLAYERID i = 0; i < MAX_PLAYERS; i++)
                                 {
@@ -388,7 +394,7 @@ bool CLocalPlayer::Process()
                                     if (dist2D < fMinDist)
                                     {
                                         float dot = (dx * fForwardX + dy * fForwardY) / (dist2D > 0.001f ? dist2D : 1.0f);
-                                        if (dot > 0.1f)
+                                        if (dot > -0.2f)
                                         {
                                             fMinDist = dist2D;
                                             targetId = i;
@@ -772,6 +778,7 @@ void CLocalPlayer::SendOnFootFullSyncData()
 	uint16_t wKeys = m_pPlayerPed->GetKeys(&lrAnalog, &udAnalog);
 
 	ONFOOT_SYNC_DATA ofSync;
+	memset(&ofSync, 0, sizeof(ONFOOT_SYNC_DATA));
 
     matPlayer = m_pPlayerPed->m_pPed->GetMatrix().ToRwMatrix();
     vecMoveSpeed = m_pPlayerPed->m_pPed->GetMoveSpeed();
@@ -797,8 +804,7 @@ void CLocalPlayer::SendOnFootFullSyncData()
 	ofSync.byteHealth = (uint8_t)m_pPlayerPed->GetHealth();
 	ofSync.byteArmour = (uint8_t)m_pPlayerPed->GetArmour();
 
-	ofSync.byteCurrentWeapon = (exKeys << 6) | ofSync.byteCurrentWeapon & 0x3F;
-	ofSync.byteCurrentWeapon ^= (ofSync.byteCurrentWeapon ^ m_pPlayerPed->GetCurrentWeapon()) & 0x3F;
+	ofSync.byteCurrentWeapon = (m_pPlayerPed->GetCurrentWeapon() & 0x3F) | (exKeys << 6);
 	ofSync.byteSpecialAction = GetSpecialAction();
 	ofSync.vecMoveSpeed.x = vecMoveSpeed.x;
 	ofSync.vecMoveSpeed.y = vecMoveSpeed.y;
