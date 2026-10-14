@@ -340,6 +340,9 @@ void BindCustomSkinsFromImg(const char* customIdePath) {
             FLog("[4KING] >>> WARNING: TXD not found in IMG for ID %d (tried '%s', '%s')",
                  ped.id, expectedTxd1, expectedTxd2);
         }
+
+        // Ensure PedModelInfo is registered as a CPedModelInfo with valid skinned ped hierarchy instead of a World Object
+        CModelInfo::SetupCustomPedModel(ped.id, ped.modelName.c_str(), ped.txdName.c_str());
     }
 
     // Auto-bind any numerical models in IMG
@@ -367,6 +370,8 @@ void BindCustomSkinsFromImg(const char* customIdePath) {
                     FLog("[4KING] >>> AUTO-BOUND Numeric DFF: ID %d -> %s (offset: %u, size: %u)",
                          id, ent.name, ent.offset, ent.size);
                 }
+                // Ensure numeric custom skin ID >= 10000 is registered as a CPedModelInfo instead of a World Object
+                CModelInfo::SetupCustomPedModel(id, base, base);
             }
         }
     }

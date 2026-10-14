@@ -27,6 +27,7 @@ public:
     static inline CStore<CVehicleModelInfo, NUM_VEHICLE_MODEL_INFOS> ms_vehicleModelInfoStore;
 
     static CPedModelInfo *AddPedModel(int index);
+    static CPedModelInfo *SetupCustomPedModel(int id, const char* modelName = nullptr, const char* txdName = nullptr);
 
     static CAtomicModelInfo *AddAtomicModel(int index);
     static CDamageAtomicModelInfo* AddDamageAtomicModel(int32 index);

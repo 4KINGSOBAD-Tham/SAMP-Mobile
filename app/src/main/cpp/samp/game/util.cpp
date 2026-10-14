@@ -1961,12 +1961,24 @@ int GetModelRefCounts(int iModel)
 // 0.3.7
 bool IsValidPedModel(uint modelID)
 {
-    if(modelID < 0 || modelID > 20000) return false;
+    if(modelID < 0 || modelID >= TOTAL_DFF_MODEL_IDS) return false;
     auto dwModelArray = CModelInfo::ms_modelInfoPtrs;
 
     uintptr_t ModelInfo = reinterpret_cast<uintptr_t>(dwModelArray[modelID]);
-    if(ModelInfo && *(uintptr_t*)ModelInfo == (uintptr_t)g_libGTASA + (VER_x32 ? 0x00667658 : 0x82F310))
+    uintptr_t pedVtable = (uintptr_t)g_libGTASA + (VER_x32 ? 0x00667658 : 0x82F310);
+    if(ModelInfo && *(uintptr_t*)ModelInfo == pedVtable)
         return true;
+
+    // Auto-setup if numeric custom skin ID >= 10000 exists in streaming archive
+    if (modelID >= 10000 && modelID < TOTAL_DFF_MODEL_IDS) {
+        if (CStreaming::ms_aInfoForModel[modelID].m_nCdSize > 0) {
+            char numStr[16];
+            snprintf(numStr, sizeof(numStr), "%u", modelID);
+            if (CModelInfo::SetupCustomPedModel(modelID, numStr, numStr)) {
+                return true;
+            }
+        }
+    }
 
     return false;
 }

@@ -354,7 +354,8 @@ bool CLocalPlayer::Process()
 
                 bool bAttacking = m_pPlayerPed ? m_pPlayerPed->IsMeleeAttacking() : (dwNow - g_dwLastLocalPlayerMeleeAttackTick < 400);
 
-                if (bAttacking && (dwNow - s_dwLastMeleeAttackTick) >= 350)
+                // Authentic GTA SA punch cooldown: 650ms between strikes
+                if (bAttacking && (dwNow - s_dwLastMeleeAttackTick) >= 650)
                 {
                     CPlayerPool* pPlayerPool = pNetGame ? pNetGame->GetPlayerPool() : nullptr;
                     if (pPlayerPool && m_pPlayerPed->m_pPed)
@@ -365,7 +366,9 @@ bool CLocalPlayer::Process()
                         float fForwardY = cosf(fCurrentRot);
 
                         PLAYERID targetId = INVALID_PLAYER_ID;
-                        float fMinDist = 2.8f;
+                        // Realistic melee physical contact reach: 1.35m for fists/knuckles, 1.65m for melee weapons
+                        float fMaxReach = (curWeapon >= 2 && curWeapon <= 8) ? 1.65f : 1.35f;
+                        float fMinDist = fMaxReach;
                         CVector targetPos(0.0f, 0.0f, 0.0f);
                         float targetDx = 0.0f, targetDy = 0.0f;
 
@@ -383,13 +386,14 @@ bool CLocalPlayer::Process()
                             float dy = remotePos.y - localPos.y;
                             float dz = remotePos.z - localPos.z;
 
-                            if (fabsf(dz) > 2.0f) continue;
+                            if (fabsf(dz) > 1.4f) continue;
 
                             float dist2D = sqrtf(dx * dx + dy * dy);
-                            if (dist2D < fMinDist)
+                            if (dist2D <= fMinDist)
                             {
                                 float dot = (dx * fForwardX + dy * fForwardY) / (dist2D > 0.001f ? dist2D : 1.0f);
-                                if (dist2D <= 2.0f || dot > -0.2f)
+                                // Strict forward facing angle: must face target within +-63 degrees (dot > 0.45f)
+                                if (dot > 0.45f)
                                 {
                                     fMinDist = dist2D;
                                     targetId = i;
@@ -425,13 +429,13 @@ bool CLocalPlayer::Process()
                                 float dx = actPos.x - localPos.x;
                                 float dy = actPos.y - localPos.y;
                                 float dz = actPos.z - localPos.z;
-                                if (fabsf(dz) > 2.0f) continue;
+                                if (fabsf(dz) > 1.4f) continue;
 
                                 float dist2D = sqrtf(dx * dx + dy * dy);
-                                if (dist2D < fMinDist)
+                                if (dist2D <= fMinDist)
                                 {
                                     float dot = (dx * fForwardX + dy * fForwardY) / (dist2D > 0.001f ? dist2D : 1.0f);
-                                    if (dist2D <= 2.0f || dot > -0.2f)
+                                    if (dot > 0.45f)
                                     {
                                         s_dwLastMeleeAttackTick = dwNow;
                                         s_dwLastMeleeTargetTick = dwNow;
