@@ -343,68 +343,69 @@ bool CLocalPlayer::Process()
                 }
             }
 
-            // Melee proximity hit detection (ensures Mobile punches hit PC players reliably)
+            // Proactive melee hit: if Mobile swings fists/melee near a PC player, force-send damage
             if (m_pPlayerPed && m_pPlayerPed->m_pPed && !m_pPlayerPed->IsDead())
             {
                 uint8_t curWeapon = m_pPlayerPed->GetCurrentWeapon();
-                if (curWeapon <= 15) // Melee weapons & fist
+                if (curWeapon <= 15) // Fists (0) and melee weapons up to ID 15
                 {
-                    bool bAttacking = LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] ||
-                                      IsAttackWidgetTouched() ||
-                                      m_pPlayerPed->m_pPed->m_nPedState == PEDSTATE_ATTACK ||
-                                      m_pPlayerPed->m_pPed->m_nPedState == PEDSTATE_FIGHT ||
-                                      m_pPlayerPed->m_pPed->bFiringWeapon;
+                    // Detect attack via ped state or attack widget or bFiringWeapon flag
+                    bool bIsAttacking = (m_pPlayerPed->m_pPed->m_nPedState == PEDSTATE_ATTACK ||
+                                         m_pPlayerPed->m_pPed->m_nPedState == PEDSTATE_FIGHT ||
+                                         m_pPlayerPed->m_pPed->bFiringWeapon ||
+                                         IsAttackWidgetTouched() ||
+                                         LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE]);
 
-                    if (bAttacking)
+                    if (bIsAttacking)
                     {
-                        static uint32_t s_dwLastMeleeAttackTick = 0;
+                        static uint32_t s_dwLastMeleeSentTick = 0;
                         uint32_t dwNow = GetTickCount();
-                        if ((dwNow - s_dwLastMeleeAttackTick) >= 380)
+                        // Allow sending once per ~400ms per swing
+                        if ((dwNow - s_dwLastMeleeSentTick) >= 400)
                         {
-                            CPlayerPool* pPlayerPool = pNetGame ? pNetGame->GetPlayerPool() : nullptr;
-                            if (pPlayerPool)
+                            CPlayerPool* pPlayerPool2 = pNetGame ? pNetGame->GetPlayerPool() : nullptr;
+                            if (pPlayerPool2)
                             {
-                                const CVector& localPos = m_pPlayerPed->m_pPed->GetPosition();
-                                float fCurrentRot = m_pPlayerPed->m_pPed->m_fCurrentRotation;
-                                float fForwardX = -sinf(fCurrentRot);
-                                float fForwardY = cosf(fCurrentRot);
+                                const CVector& myPos = m_pPlayerPed->m_pPed->GetPosition();
 
-                                PLAYERID targetId = INVALID_PLAYER_ID;
-                                float fMinDist = 2.4f;
+                                PLAYERID closestTarget = INVALID_PLAYER_ID;
+                                float fClosestDist = 3.0f; // 3 metre melee range
 
                                 for (PLAYERID i = 0; i < MAX_PLAYERS; i++)
                                 {
-                                    if (i == pPlayerPool->GetLocalPlayerID()) continue;
-                                    if (!pPlayerPool->GetSlotState(i)) continue;
-                                    CRemotePlayer* pRemotePlayer = pPlayerPool->GetAt(i);
-                                    if (!pRemotePlayer) continue;
-                                    CPlayerPed* pRemotePed = pRemotePlayer->GetPlayerPed();
-                                    if (!pRemotePed || !pRemotePed->m_pPed || pRemotePed->IsDead()) continue;
+                                    if (i == pPlayerPool2->GetLocalPlayerID()) continue;
+                                    if (!pPlayerPool2->GetSlotState(i)) continue;
+                                    CRemotePlayer* pRP = pPlayerPool2->GetAt(i);
+                                    if (!pRP) continue;
+                                    CPlayerPed* pRPed = pRP->GetPlayerPed();
+                                    if (!pRPed || !pRPed->m_pPed || pRPed->IsDead()) continue;
 
-                                    const CVector& remotePos = pRemotePed->m_pPed->GetPosition();
-                                    float dx = remotePos.x - localPos.x;
-                                    float dy = remotePos.y - localPos.y;
-                                    float dz = remotePos.z - localPos.z;
+                                    const CVector& theirPos = pRPed->m_pPed->GetPosition();
+                                    float dx = theirPos.x - myPos.x;
+                                    float dy = theirPos.y - myPos.y;
+                                    float dz = theirPos.z - myPos.z;
+                                    if (fabsf(dz) > 2.5f) continue;
 
-                                    if (fabsf(dz) > 2.0f) continue;
-
-                                    float dist2D = sqrtf(dx * dx + dy * dy);
-                                    if (dist2D < fMinDist)
+                                    float dist = sqrtf(dx*dx + dy*dy);
+                                    if (dist < fClosestDist)
                                     {
-                                        float dot = (dx * fForwardX + dy * fForwardY) / (dist2D > 0.001f ? dist2D : 1.0f);
-                                        if (dot > 0.1f)
-                                        {
-                                            fMinDist = dist2D;
-                                            targetId = i;
-                                        }
+                                        fClosestDist = dist;
+                                        closestTarget = i;
                                     }
                                 }
 
-                                if (targetId != INVALID_PLAYER_ID)
+                                if (closestTarget != INVALID_PLAYER_ID)
                                 {
-                                    s_dwLastMeleeAttackTick = dwNow;
-                                    float fDamage = (curWeapon == 0) ? 3.3f : 4.62f;
-                                    SendGiveDamageEvent(targetId, fDamage, curWeapon, PED_PIECE_TORSO);
+                                    s_dwLastMeleeSentTick = dwNow;
+                                    float fDmg = (curWeapon == 0) ? 3.3f : 4.62f;
+                                    // Send directly without debounce gating (bypass SendGiveDamageEvent debounce)
+                                    RakNet::BitStream bsMelee;
+                                    bsMelee.Write(false); // bGiveOrTake = false (we give damage to target)
+                                    bsMelee.Write(closestTarget);
+                                    bsMelee.Write(fDmg);
+                                    bsMelee.Write((int)curWeapon);
+                                    bsMelee.Write((int)PED_PIECE_TORSO);
+                                    pNetGame->GetRakClient()->RPC(&RPC_PlayerGiveTakeDamage, &bsMelee, HIGH_PRIORITY, RELIABLE_ORDERED, 0, false, UNASSIGNED_NETWORK_ID, nullptr);
                                 }
                             }
                         }
@@ -1844,16 +1845,6 @@ void CLocalPlayer::SendTakeDamageEvent(PLAYERID PlayerID, float fDamageFactor, i
 // 0.3.7
 void CLocalPlayer::SendGiveDamageEvent(PLAYERID PlayerID, float fDamageFactor, int weaponType, int pedPieceType)
 {
-	static uint32_t s_dwLastDamageSentTick = 0;
-	static PLAYERID s_lastDamagePlayerID = INVALID_PLAYER_ID;
-	uint32_t dwNow = GetTickCount();
-	if (PlayerID == s_lastDamagePlayerID && (dwNow - s_dwLastDamageSentTick) < 300)
-	{
-		return;
-	}
-	s_dwLastDamageSentTick = dwNow;
-	s_lastDamagePlayerID = PlayerID;
-
 	if (weaponType == 0) {
 		if (fDamageFactor < 3.0f) fDamageFactor = 3.3f;
 	} else if (weaponType <= 15) {
