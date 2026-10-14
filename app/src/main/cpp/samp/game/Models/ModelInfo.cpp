@@ -44,7 +44,7 @@ CPedModelInfo* CModelInfo::SetupCustomPedModel(int id, const char* modelName, co
         pPedInfo->m_pHitColModel = pBasePed->m_pHitColModel;
         pPedInfo->m_nAnimType = 0; // "man"
         pPedInfo->m_dwAnimFileIndex = (uintptr_t)-1;
-        pPedInfo->m_nPedType = PED_TYPE_GEN;
+        pPedInfo->m_nPedType = pBasePed->m_nPedType;
         pPedInfo->m_nStatType = 0; // STAT_STD_MISSION
         pPedInfo->m_nCarsCanDriveMask = 0x1FFF;
         pPedInfo->m_nPedFlags = 0;
