@@ -282,7 +282,7 @@ bool CLocalPlayer::Process()
 			m_bPassengerDriveByMode = false;
 		}
 		// ONFOOT CONDITIONS
-		else if (m_pPlayerPed->GetActionTrigger() == ACTION_NORMAL || m_pPlayerPed->GetActionTrigger() == ACTION_SCOPE)
+		else if (!m_pPlayerPed->IsInVehicle() && !m_pPlayerPed->IsAPassenger())
 		{
 			if ((dwThisTick - m_dwLastSendTick) > GetOptimumOnFootSendRate())
 			{
@@ -356,12 +356,14 @@ bool CLocalPlayer::Process()
                         s_dwLastAttackTouchTick = dwNow;
                     }
 
-                    bool bAttacking = (dwNow - s_dwLastAttackTouchTick) < 400;
+                    bool bAttacking = (dwNow - s_dwLastAttackTouchTick) < 500 ||
+                                      LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] ||
+                                      (m_pPlayerPed->m_pPed->m_nPedState == PEDSTATE_ATTACK || m_pPlayerPed->m_pPed->m_nPedState == PEDSTATE_FIGHT);
 
                     if (bAttacking)
                     {
                         static uint32_t s_dwLastMeleeAttackTick = 0;
-                        if ((dwNow - s_dwLastMeleeAttackTick) >= 380)
+                        if ((dwNow - s_dwLastMeleeAttackTick) >= 300)
                         {
                             CPlayerPool* pPlayerPool = pNetGame ? pNetGame->GetPlayerPool() : nullptr;
                             if (pPlayerPool)
@@ -372,7 +374,7 @@ bool CLocalPlayer::Process()
                                 float fForwardY = cosf(fCurrentRot);
 
                                 PLAYERID targetId = INVALID_PLAYER_ID;
-                                float fMinDist = 2.8f;
+                                float fMinDist = 3.0f;
 
                                 for (PLAYERID i = 0; i < MAX_PLAYERS; i++)
                                 {
@@ -394,7 +396,8 @@ bool CLocalPlayer::Process()
                                     if (dist2D < fMinDist)
                                     {
                                         float dot = (dx * fForwardX + dy * fForwardY) / (dist2D > 0.001f ? dist2D : 1.0f);
-                                        if (dot > -0.2f)
+                                        // If within intimate melee range (1.8m), always hit. If up to 3.0m, allow wide forward angle.
+                                        if (dist2D <= 1.8f || dot > -0.4f)
                                         {
                                             fMinDist = dist2D;
                                             targetId = i;
@@ -405,7 +408,17 @@ bool CLocalPlayer::Process()
                                 if (targetId != INVALID_PLAYER_ID)
                                 {
                                     s_dwLastMeleeAttackTick = dwNow;
-                                    float fDamage = (curWeapon == 0) ? 3.3f : 4.62f;
+                                    float fDamage = 3.3f;
+                                    switch (curWeapon)
+                                    {
+                                        case 0: fDamage = 3.3f; break; // Fist
+                                        case 1: fDamage = 4.62f; break; // Brass knuckles
+                                        case 4: fDamage = 6.6f; break; // Knife
+                                        case 5: fDamage = 5.28f; break; // Bat
+                                        case 8: fDamage = 5.28f; break; // Katana
+                                        case 9: fDamage = 9.9f; break; // Chainsaw
+                                        default: fDamage = 4.62f; break;
+                                    }
                                     SendGiveDamageEvent(targetId, fDamage, curWeapon, PED_PIECE_TORSO);
                                 }
                             }
@@ -1829,17 +1842,15 @@ void CLocalPlayer::SendTakeDamageEvent(PLAYERID PlayerID, float fDamageFactor, i
 		if (fDamageFactor < 3.0f) fDamageFactor = 3.3f;
 	} else if (weaponType <= 15) {
 		if (fDamageFactor < 4.0f) fDamageFactor = 4.62f;
-	} else {
-		fDamageFactor *= 0.33f;
 	}
 	if (fDamageFactor < 1.0f) fDamageFactor = 1.0f;
 
 	RakNet::BitStream bsSend;
-	bsSend.Write(true);
-	bsSend.Write(PlayerID);
-	bsSend.Write(fDamageFactor);
-	bsSend.Write(weaponType);
-	bsSend.Write(pedPieceType);
+	bsSend.Write(false); // false = TakeDamage (I took damage)
+	bsSend.Write((uint16_t)PlayerID);
+	bsSend.Write((float)fDamageFactor);
+	bsSend.Write((uint32_t)weaponType);
+	bsSend.Write((uint32_t)pedPieceType);
 
 	pNetGame->GetRakClient()->RPC(&RPC_PlayerGiveTakeDamage, &bsSend, HIGH_PRIORITY, RELIABLE_ORDERED, 0, false, UNASSIGNED_NETWORK_ID, nullptr);
 }
@@ -1849,7 +1860,7 @@ void CLocalPlayer::SendGiveDamageEvent(PLAYERID PlayerID, float fDamageFactor, i
 	static uint32_t s_dwLastDamageSentTick = 0;
 	static PLAYERID s_lastDamagePlayerID = INVALID_PLAYER_ID;
 	uint32_t dwNow = GetTickCount();
-	if (PlayerID == s_lastDamagePlayerID && (dwNow - s_dwLastDamageSentTick) < 300)
+	if (weaponType <= 15 && PlayerID == s_lastDamagePlayerID && (dwNow - s_dwLastDamageSentTick) < 250)
 	{
 		return;
 	}
@@ -1860,17 +1871,15 @@ void CLocalPlayer::SendGiveDamageEvent(PLAYERID PlayerID, float fDamageFactor, i
 		if (fDamageFactor < 3.0f) fDamageFactor = 3.3f;
 	} else if (weaponType <= 15) {
 		if (fDamageFactor < 4.0f) fDamageFactor = 4.62f;
-	} else {
-		fDamageFactor *= 0.33f;
 	}
 	if (fDamageFactor < 1.0f) fDamageFactor = 1.0f;
 
 	RakNet::BitStream bsSend;
-	bsSend.Write(false);
-	bsSend.Write(PlayerID);
-	bsSend.Write(fDamageFactor);
-	bsSend.Write(weaponType);
-	bsSend.Write(pedPieceType);
+	bsSend.Write(true); // true = GiveDamage (I dealt damage to PlayerID)
+	bsSend.Write((uint16_t)PlayerID);
+	bsSend.Write((float)fDamageFactor);
+	bsSend.Write((uint32_t)weaponType);
+	bsSend.Write((uint32_t)pedPieceType);
 
 	pNetGame->GetRakClient()->RPC(&RPC_PlayerGiveTakeDamage, &bsSend, HIGH_PRIORITY, RELIABLE_ORDERED, 0, false, UNASSIGNED_NETWORK_ID, nullptr);
 }
@@ -1881,8 +1890,6 @@ void CLocalPlayer::SendGiveDamageActorEvent(PLAYERID ActorID, float fDamageFacto
 		if (fDamageFactor < 3.0f) fDamageFactor = 3.3f;
 	} else if (weaponType <= 15) {
 		if (fDamageFactor < 4.0f) fDamageFactor = 4.62f;
-	} else {
-		fDamageFactor *= 0.33f;
 	}
 	if (fDamageFactor < 1.0f) fDamageFactor = 1.0f;
 
