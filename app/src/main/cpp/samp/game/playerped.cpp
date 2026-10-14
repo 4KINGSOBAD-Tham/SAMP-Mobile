@@ -712,14 +712,11 @@ uint16_t CPlayerPed::GetKeys(uint16_t *lrAnalog, uint16_t *udAnalog, bool clear)
 			{
 				s_dwAttackUntilTick = dwNow + 400;
 			}
-			if (dwNow < s_dwAttackUntilTick)
-			{
-				LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = true;
-			}
-			else
-			{
-				LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = false;
-			}
+			bool bIsAttacking = (dwNow < s_dwAttackUntilTick) ||
+			                    (m_pPed->m_nPedState == PEDSTATE_ATTACK) ||
+			                    (m_pPed->m_nPedState == PEDSTATE_FIGHT) ||
+			                    (m_pPed->bFiringWeapon);
+			LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = bIsAttacking;
 		}
 	}
 
@@ -1367,6 +1364,27 @@ void CPlayerPed::ProcessBulletData(BULLET_DATA *btData)
 						bsBullet.Write((char)ID_BULLET_SYNC);
 						bsBullet.Write((char*)&btSync, sizeof(BULLET_SYNC_DATA));
 						pNetGame->GetRakClient()->Send(&bsBullet, PacketPriority::HIGH_PRIORITY, PacketReliability::UNRELIABLE_SEQUENCED, 0);
+
+						if (byteHitType == BULLET_HIT_TYPE_PLAYER && InstanceID != INVALID_PLAYER_ID)
+						{
+							CPlayerPool* pPool = pNetGame->GetPlayerPool();
+							if (pPool && pPool->GetLocalPlayer())
+							{
+								uint8_t wId = pLocalPlayerPed->GetCurrentWeapon();
+								float fBulletDmg = GetWeaponDamage(wId);
+								pPool->GetLocalPlayer()->SendGiveDamageEvent(InstanceID, fBulletDmg, wId, PED_PIECE_TORSO);
+							}
+						}
+						else if (byteHitType == 2 /* BULLET_HIT_TYPE_ACTOR */ && InstanceID != INVALID_PLAYER_ID)
+						{
+							CPlayerPool* pPool = pNetGame->GetPlayerPool();
+							if (pPool && pPool->GetLocalPlayer())
+							{
+								uint8_t wId = pLocalPlayerPed->GetCurrentWeapon();
+								float fBulletDmg = GetWeaponDamage(wId);
+								pPool->GetLocalPlayer()->SendGiveDamageActorEvent(InstanceID, fBulletDmg, wId, PED_PIECE_TORSO);
+							}
+						}
 					}
 				}
 			}

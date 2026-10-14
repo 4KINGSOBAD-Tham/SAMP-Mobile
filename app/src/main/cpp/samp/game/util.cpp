@@ -2477,6 +2477,47 @@ int GameGetWeaponModelIDFromWeaponID(int iWeaponID)
     return -1;
 }
 
+float GetWeaponDamage(uint8_t weaponId)
+{
+    switch (weaponId)
+    {
+        case WEAPON_UNARMED: return 3.3f;
+        case WEAPON_BRASSKNUCKLE: return 4.62f;
+        case WEAPON_GOLFCLUB: return 5.28f;
+        case WEAPON_NIGHTSTICK: return 5.28f;
+        case WEAPON_KNIFE: return 6.6f;
+        case WEAPON_BASEBALLBAT: return 5.28f;
+        case WEAPON_SHOVEL: return 5.28f;
+        case WEAPON_POOL_CUE: return 5.28f;
+        case WEAPON_KATANA: return 5.28f;
+        case WEAPON_CHAINSAW: return 9.9f;
+        case WEAPON_DILDO1:
+        case WEAPON_DILDO2:
+        case WEAPON_VIBE1:
+        case WEAPON_VIBE2: return 4.62f;
+        case WEAPON_FLOWERS: return 1.65f;
+        case WEAPON_CANE: return 4.62f;
+
+        case WEAPON_PISTOL: return 25.0f;
+        case WEAPON_PISTOL_SILENCED: return 13.2f;
+        case WEAPON_DESERT_EAGLE: return 46.2f;
+        case WEAPON_SHOTGUN: return 30.0f;
+        case WEAPON_SAWNOFF_SHOTGUN: return 30.0f;
+        case WEAPON_SPAS12_SHOTGUN: return 40.0f;
+        case WEAPON_MICRO_UZI: return 6.6f;
+        case WEAPON_MP5: return 8.25f;
+        case WEAPON_AK47: return 9.9f;
+        case WEAPON_M4: return 9.9f;
+        case WEAPON_TEC9: return 6.6f;
+        case WEAPON_COUNTRYRIFLE: return 24.75f;
+        case WEAPON_SNIPERRIFLE: return 41.25f;
+        case WEAPON_MINIGUN: return 46.2f;
+        case WEAPON_SPRAYCAN: return 0.99f;
+        case WEAPON_EXTINGUISHER: return 0.99f;
+        default: return (weaponId <= 15) ? 3.3f : 10.0f;
+    }
+}
+
 bool IsPointInRect(float x, float y, CRect* rect)
 {
 	if (x >= rect->left && x <= rect->right &&

@@ -343,6 +343,97 @@ bool CLocalPlayer::Process()
                 }
             }
 
+            // Melee hit registration for mobile against remote players/actors
+            uint8_t curWeapon = m_pPlayerPed->GetCurrentWeapon();
+            if (curWeapon <= 15)
+            {
+                static uint32_t s_dwLastMeleeAttackTick = 0;
+                uint32_t dwNow = GetTickCount();
+
+                bool bAttacking = m_pPlayerPed->IsAttackWidgetTouched() ||
+                                  LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] ||
+                                  (m_pPlayerPed->m_pPed && (m_pPlayerPed->m_pPed->m_nPedState == PEDSTATE_ATTACK ||
+                                                            m_pPlayerPed->m_pPed->m_nPedState == PEDSTATE_FIGHT ||
+                                                            m_pPlayerPed->m_pPed->bFiringWeapon));
+
+                if (bAttacking && (dwNow - s_dwLastMeleeAttackTick) >= 350)
+                {
+                    CPlayerPool* pPlayerPool = pNetGame ? pNetGame->GetPlayerPool() : nullptr;
+                    if (pPlayerPool && m_pPlayerPed->m_pPed)
+                    {
+                        const CVector& localPos = m_pPlayerPed->m_pPed->GetPosition();
+                        float fCurrentRot = m_pPlayerPed->m_pPed->m_fCurrentRotation;
+                        float fForwardX = -sinf(fCurrentRot);
+                        float fForwardY = cosf(fCurrentRot);
+
+                        PLAYERID targetId = INVALID_PLAYER_ID;
+                        float fMinDist = 2.4f;
+
+                        for (PLAYERID i = 0; i < MAX_PLAYERS; i++)
+                        {
+                            if (i == pPlayerPool->GetLocalPlayerID()) continue;
+                            if (!pPlayerPool->GetSlotState(i)) continue;
+                            CRemotePlayer* pRemotePlayer = pPlayerPool->GetAt(i);
+                            if (!pRemotePlayer) continue;
+                            CPlayerPed* pRemotePed = pRemotePlayer->GetPlayerPed();
+                            if (!pRemotePed || !pRemotePed->m_pPed || pRemotePed->IsDead()) continue;
+
+                            const CVector& remotePos = pRemotePed->m_pPed->GetPosition();
+                            float dx = remotePos.x - localPos.x;
+                            float dy = remotePos.y - localPos.y;
+                            float dz = remotePos.z - localPos.z;
+
+                            if (fabsf(dz) > 1.8f) continue;
+
+                            float dist2D = sqrtf(dx * dx + dy * dy);
+                            if (dist2D < fMinDist)
+                            {
+                                float dot = (dx * fForwardX + dy * fForwardY) / (dist2D > 0.001f ? dist2D : 1.0f);
+                                if (dist2D <= 1.2f || dot > 0.2f)
+                                {
+                                    fMinDist = dist2D;
+                                    targetId = i;
+                                }
+                            }
+                        }
+
+                        if (targetId != INVALID_PLAYER_ID)
+                        {
+                            s_dwLastMeleeAttackTick = dwNow;
+                            float fMeleeDmg = GetWeaponDamage(curWeapon);
+                            SendGiveDamageEvent(targetId, fMeleeDmg, curWeapon, PED_PIECE_TORSO);
+                        }
+                        else if (pNetGame->GetActorPool())
+                        {
+                            CActorPool* pActorPool = pNetGame->GetActorPool();
+                            for (size_t a = 0; a < MAX_ACTORS; a++)
+                            {
+                                CActor* pActor = pActorPool->GetAt((PLAYERID)a);
+                                if (!pActor || !pActor->m_pPed) continue;
+
+                                const CVector& actPos = pActor->m_pPed->GetPosition();
+                                float dx = actPos.x - localPos.x;
+                                float dy = actPos.y - localPos.y;
+                                float dz = actPos.z - localPos.z;
+                                if (fabsf(dz) > 1.8f) continue;
+
+                                float dist2D = sqrtf(dx * dx + dy * dy);
+                                if (dist2D < fMinDist)
+                                {
+                                    float dot = (dx * fForwardX + dy * fForwardY) / (dist2D > 0.001f ? dist2D : 1.0f);
+                                    if (dist2D <= 1.2f || dot > 0.2f)
+                                    {
+                                        s_dwLastMeleeAttackTick = dwNow;
+                                        float fMeleeDmg = GetWeaponDamage(curWeapon);
+                                        SendGiveDamageActorEvent((PLAYERID)a, fMeleeDmg, curWeapon, PED_PIECE_TORSO);
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
 
 			m_bPassengerDriveByMode = false;
 		}
@@ -1755,40 +1846,41 @@ void CLocalPlayer::SendExitVehicleNotification(VEHICLEID VehicleID)
 // 0.3.7
 void CLocalPlayer::SendTakeDamageEvent(PLAYERID PlayerID, float fDamageFactor, int weaponType, int pedPieceType)
 {
-	fDamageFactor *= 0.33f;
+	if (fDamageFactor < 1.0f) fDamageFactor = 1.0f;
 
 	RakNet::BitStream bsSend;
-	bsSend.Write(true);
-	bsSend.Write(PlayerID);
-	bsSend.Write(fDamageFactor);
-	bsSend.Write(weaponType);
-	bsSend.Write(pedPieceType);
+	bsSend.Write(true); // true = TakeDamage
+	bsSend.Write((uint16_t)PlayerID);
+	bsSend.Write((float)fDamageFactor);
+	bsSend.Write((uint32_t)weaponType);
+	bsSend.Write((uint32_t)pedPieceType);
 
 	pNetGame->GetRakClient()->RPC(&RPC_PlayerGiveTakeDamage, &bsSend, HIGH_PRIORITY, RELIABLE_ORDERED, 0, false, UNASSIGNED_NETWORK_ID, nullptr);
 }
 // 0.3.7
 void CLocalPlayer::SendGiveDamageEvent(PLAYERID PlayerID, float fDamageFactor, int weaponType, int pedPieceType)
 {
-	fDamageFactor *= 0.33f;
+	if (fDamageFactor < 1.0f) fDamageFactor = 1.0f;
 
 	RakNet::BitStream bsSend;
-	bsSend.Write(false);
-	bsSend.Write(PlayerID);
-	bsSend.Write(fDamageFactor);
-	bsSend.Write(weaponType);
-	bsSend.Write(pedPieceType);
+	bsSend.Write(false); // false = GiveDamage
+	bsSend.Write((uint16_t)PlayerID);
+	bsSend.Write((float)fDamageFactor);
+	bsSend.Write((uint32_t)weaponType);
+	bsSend.Write((uint32_t)pedPieceType);
 
 	pNetGame->GetRakClient()->RPC(&RPC_PlayerGiveTakeDamage, &bsSend, HIGH_PRIORITY, RELIABLE_ORDERED, 0, false, UNASSIGNED_NETWORK_ID, nullptr);
 }
 // 0.3.7
 void CLocalPlayer::SendGiveDamageActorEvent(PLAYERID ActorID, float fDamageFactor, int weaponType, int pedPieceType)
 {
+	if (fDamageFactor < 1.0f) fDamageFactor = 1.0f;
+
 	RakNet::BitStream bsSend;
-	bsSend.Write(false);
-	bsSend.Write(ActorID);
-	bsSend.Write(fDamageFactor);
-	bsSend.Write(weaponType);
-	bsSend.Write(pedPieceType);
+	bsSend.Write((uint16_t)ActorID);
+	bsSend.Write((float)fDamageFactor);
+	bsSend.Write((uint32_t)weaponType);
+	bsSend.Write((uint32_t)pedPieceType);
 
 	pNetGame->GetRakClient()->RPC(&RPC_GiveDamageActor, &bsSend, HIGH_PRIORITY, RELIABLE_ORDERED, 0, false, UNASSIGNED_NETWORK_ID, nullptr);
 }

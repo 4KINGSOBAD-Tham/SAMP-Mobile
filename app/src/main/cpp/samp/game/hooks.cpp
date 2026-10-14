@@ -84,7 +84,7 @@ PLAYERID FindPlayerIDFromGtaPtr(CEntityGTA* pEntity)
 // 0.3.7
 PLAYERID FindActorIDFromGtaPtr(CPedGTA* pPed)
 {
-	if (pPed) {
+	if (pPed && pNetGame && pNetGame->GetActorPool()) {
 		return pNetGame->GetActorPool()->FindIDFromGtaPtr(pPed);
 	}
 
@@ -796,11 +796,14 @@ bool ComputeDamageResponse(CPedDamageResponseCalculator* calculator, CPedGTA* pP
     CLocalPlayer* pLocalPlayer = pPlayerPool->GetLocalPlayer();
     PLAYERID PlayerID;
 
+    float fDamage = calculator->m_fDamageFactor * 0.33f;
+    if (fDamage < 1.0f) fDamage = 1.0f;
+
     if (isLocalPed)
     {
         PlayerID = FindPlayerIDFromGtaPtr(pDamager);
         pLocalPlayer->SendTakeDamageEvent(PlayerID,
-                                          calculator->m_fDamageFactor,
+                                          fDamage,
                                           calculator->m_weaponType,
                                           calculator->m_pedPieceType);
     }
@@ -810,7 +813,7 @@ bool ComputeDamageResponse(CPedDamageResponseCalculator* calculator, CPedGTA* pP
         if (PlayerID != INVALID_PLAYER_ID)
         {
             pLocalPlayer->SendGiveDamageEvent(PlayerID,
-                                              calculator->m_fDamageFactor,
+                                              fDamage,
                                               calculator->m_weaponType,
                                               calculator->m_pedPieceType);
             if (pPlayerPool->GetAt(PlayerID)->IsNPC())
@@ -820,8 +823,8 @@ bool ComputeDamageResponse(CPedDamageResponseCalculator* calculator, CPedGTA* pP
         {
             PLAYERID ActorID = FindActorIDFromGtaPtr(pPed);
             if (ActorID != INVALID_PLAYER_ID) {
-                pLocalPlayer->SendGiveDamageEvent(ActorID,
-                                                  calculator->m_fDamageFactor,
+                pLocalPlayer->SendGiveDamageActorEvent(ActorID,
+                                                  fDamage,
                                                   calculator->m_weaponType,
                                                   calculator->m_pedPieceType);
                 return true;
