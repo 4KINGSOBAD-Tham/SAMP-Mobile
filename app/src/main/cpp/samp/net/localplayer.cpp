@@ -350,7 +350,7 @@ bool CLocalPlayer::Process()
                 static uint32_t s_dwLastMeleeAttackTick = 0;
                 uint32_t dwNow = GetTickCount();
 
-                bool bAttacking = m_pPlayerPed->IsAttackWidgetTouched() ||
+                bool bAttacking = IsAttackWidgetTouched() ||
                                   LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] ||
                                   (m_pPlayerPed->m_pPed && (m_pPlayerPed->m_pPed->m_nPedState == PEDSTATE_ATTACK ||
                                                             m_pPlayerPed->m_pPed->m_nPedState == PEDSTATE_FIGHT ||
