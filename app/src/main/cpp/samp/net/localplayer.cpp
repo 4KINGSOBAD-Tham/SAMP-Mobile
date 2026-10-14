@@ -410,7 +410,8 @@ bool CLocalPlayer::Process()
                             SendGiveDamageEvent(targetId, fMeleeDmg, curWeapon, PED_PIECE_TORSO);
 
                             float fTargetAngle = atan2f(-targetDx, targetDy);
-                            m_pPlayerPed->SetRotation(RadToDeg(fTargetAngle));
+                            m_pPlayerPed->m_pPed->m_fCurrentRotation = fTargetAngle;
+                            m_pPlayerPed->m_pPed->m_fAimingRotation = fTargetAngle;
                         }
                         else if (pNetGame->GetActorPool())
                         {
@@ -440,7 +441,8 @@ bool CLocalPlayer::Process()
                                         SendGiveDamageActorEvent((PLAYERID)a, fMeleeDmg, curWeapon, PED_PIECE_TORSO);
 
                                         float fTargetAngle = atan2f(-dx, dy);
-                                        m_pPlayerPed->SetRotation(RadToDeg(fTargetAngle));
+                                        m_pPlayerPed->m_pPed->m_fCurrentRotation = fTargetAngle;
+                                        m_pPlayerPed->m_pPed->m_fAimingRotation = fTargetAngle;
                                         break;
                                     }
                                 }
