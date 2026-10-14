@@ -389,7 +389,7 @@ bool CLocalPlayer::Process()
                             if (dist2D < fMinDist)
                             {
                                 float dot = (dx * fForwardX + dy * fForwardY) / (dist2D > 0.001f ? dist2D : 1.0f);
-                                if (dist2D <= 1.5f || dot > 0.15f)
+                                if (dist2D <= 1.8f || dot > 0.0f)
                                 {
                                     fMinDist = dist2D;
                                     targetId = i;
@@ -431,7 +431,7 @@ bool CLocalPlayer::Process()
                                 if (dist2D < fMinDist)
                                 {
                                     float dot = (dx * fForwardX + dy * fForwardY) / (dist2D > 0.001f ? dist2D : 1.0f);
-                                    if (dist2D <= 1.5f || dot > 0.15f)
+                                    if (dist2D <= 1.8f || dot > 0.0f)
                                     {
                                         s_dwLastMeleeAttackTick = dwNow;
                                         s_dwLastMeleeTargetTick = dwNow;
@@ -862,18 +862,18 @@ void CLocalPlayer::SendOnFootFullSyncData()
 		}
 	}
 
-	ofSync.dwAnimation = 0;
+	ofSync.dwAnimation = m_pPlayerPed ? m_pPlayerPed->GetCurrentAnimationIndex() : 0;
 
-	if (m_pPlayerPed && m_pPlayerPed->IsMeleeAttacking() && (GetTickCount() - s_dwLastMeleeTargetTick < 600))
+	if (m_pPlayerPed && m_pPlayerPed->IsMeleeAttacking() && (GetTickCount() - s_dwLastMeleeTargetTick < 400))
 	{
 		float dx = s_vecLastMeleeTargetPos.x - ofSync.vecPos.x;
 		float dy = s_vecLastMeleeTargetPos.y - ofSync.vecPos.y;
 		float dist = sqrtf(dx * dx + dy * dy);
-		if (dist > 0.8f && dist < 2.8f)
+		if (dist > 0.7f && dist < 2.8f)
 		{
-			// Nudge position slightly forward towards target to compensate for network latency
-			ofSync.vecPos.x += (dx / dist) * 0.45f;
-			ofSync.vecPos.y += (dy / dist) * 0.45f;
+			// Position attacker at striking range (0.65m) directly in front of target
+			ofSync.vecPos.x = s_vecLastMeleeTargetPos.x - (dx / dist) * 0.65f;
+			ofSync.vecPos.y = s_vecLastMeleeTargetPos.y - (dy / dist) * 0.65f;
 		}
 	}
 
