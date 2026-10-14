@@ -21,6 +21,8 @@ extern int iNetModeSendMultiplier;
 
 bool m_bWasInCar = false;
 static uint32_t s_dwDeathTick = 0;
+static CVector s_vecLastMeleeTargetPos(0.0f, 0.0f, 0.0f);
+static uint32_t s_dwLastMeleeTargetTick = 0;
 
 #include <math.h>
 
@@ -364,6 +366,8 @@ bool CLocalPlayer::Process()
 
                         PLAYERID targetId = INVALID_PLAYER_ID;
                         float fMinDist = 2.8f;
+                        CVector targetPos(0.0f, 0.0f, 0.0f);
+                        float targetDx = 0.0f, targetDy = 0.0f;
 
                         for (PLAYERID i = 0; i < MAX_PLAYERS; i++)
                         {
@@ -389,6 +393,9 @@ bool CLocalPlayer::Process()
                                 {
                                     fMinDist = dist2D;
                                     targetId = i;
+                                    targetPos = remotePos;
+                                    targetDx = dx;
+                                    targetDy = dy;
                                 }
                             }
                         }
@@ -396,8 +403,14 @@ bool CLocalPlayer::Process()
                         if (targetId != INVALID_PLAYER_ID)
                         {
                             s_dwLastMeleeAttackTick = dwNow;
+                            s_dwLastMeleeTargetTick = dwNow;
+                            s_vecLastMeleeTargetPos = targetPos;
+
                             float fMeleeDmg = GetWeaponDamage(curWeapon);
                             SendGiveDamageEvent(targetId, fMeleeDmg, curWeapon, PED_PIECE_TORSO);
+
+                            float fTargetAngle = atan2f(-targetDx, targetDy);
+                            m_pPlayerPed->SetRotation(RadToDeg(fTargetAngle));
                         }
                         else if (pNetGame->GetActorPool())
                         {
@@ -420,8 +433,14 @@ bool CLocalPlayer::Process()
                                     if (dist2D <= 1.5f || dot > 0.15f)
                                     {
                                         s_dwLastMeleeAttackTick = dwNow;
+                                        s_dwLastMeleeTargetTick = dwNow;
+                                        s_vecLastMeleeTargetPos = actPos;
+
                                         float fMeleeDmg = GetWeaponDamage(curWeapon);
                                         SendGiveDamageActorEvent((PLAYERID)a, fMeleeDmg, curWeapon, PED_PIECE_TORSO);
+
+                                        float fTargetAngle = atan2f(-dx, dy);
+                                        m_pPlayerPed->SetRotation(RadToDeg(fTargetAngle));
                                         break;
                                     }
                                 }
@@ -841,8 +860,20 @@ void CLocalPlayer::SendOnFootFullSyncData()
 		}
 	}
 
-	ofSync.dwAnimation = m_pPlayerPed ? m_pPlayerPed->GetCurrentAnimationIndex() : 0;
-	//_this->field_104 = 1;
+	ofSync.dwAnimation = 0;
+
+	if (m_pPlayerPed && m_pPlayerPed->IsMeleeAttacking() && (GetTickCount() - s_dwLastMeleeTargetTick < 600))
+	{
+		float dx = s_vecLastMeleeTargetPos.x - ofSync.vecPos.x;
+		float dy = s_vecLastMeleeTargetPos.y - ofSync.vecPos.y;
+		float dist = sqrtf(dx * dx + dy * dy);
+		if (dist > 0.8f && dist < 2.8f)
+		{
+			// Nudge position slightly forward towards target to compensate for network latency
+			ofSync.vecPos.x += (dx / dist) * 0.45f;
+			ofSync.vecPos.y += (dy / dist) * 0.45f;
+		}
+	}
 
 	if ((GetTickCount() - m_dwLastUpdateOnFootData) > 200 || memcmp(&m_ofSync, &ofSync, sizeof(ONFOOT_SYNC_DATA)))
 	{

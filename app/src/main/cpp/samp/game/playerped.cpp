@@ -744,11 +744,6 @@ uint16_t CPlayerPed::GetKeys(uint16_t *lrAnalog, uint16_t *udAnalog, bool clear)
 			if (bIsAttacking)
 			{
 				LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = true;
-				uint8_t curWeapon = GetCurrentWeapon();
-				if (curWeapon <= 15)
-				{
-					LocalPlayerKeys.bKeys[ePadKeys::KEY_HANDBRAKE] = true;
-				}
 			}
 		}
 	}
