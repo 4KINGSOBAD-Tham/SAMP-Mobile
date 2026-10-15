@@ -123,9 +123,8 @@ void BindCustomSkinsFromImg(const char* customIdePath) {
             bool inPedsSection = false;
             while (fgets(line, sizeof(line), fIde)) {
                 char* p = line;
-                while (*p == ' ' || *p == '	') p++;
-                if (*p == '#' || *p == '' || *p == '
-' || *p == '\\0') continue;
+                while (*p == ' ' || *p == '\t') p++;
+                if (*p == '#' || *p == '\r' || *p == '\n' || *p == '\0') continue;
 
                 if (!strncasecmp(p, "peds", 4)) {
                     inPedsSection = true;
