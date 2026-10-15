@@ -218,6 +218,16 @@ public class GameDataDownloadDialog {
                 unzip(tempZip, targetDir, (fileName, currentCount) -> {
                     updateUI(tvStatusDetail, "กำลังติดตั้ง: " + fileName);
                 });
+                try {
+                    File gtaTarget = new File(TARGET_EXTRACT_DIR, "GTA");
+                    if (gtaTarget.exists()) {
+                        unzip(tempZip, gtaTarget, null);
+                    }
+                    File extDir = activity.getExternalFilesDir(null);
+                    if (extDir != null && extDir.exists()) {
+                        unzip(tempZip, extDir, null);
+                    }
+                } catch (Exception ignored) {}
 
                 tempZip.delete();
 

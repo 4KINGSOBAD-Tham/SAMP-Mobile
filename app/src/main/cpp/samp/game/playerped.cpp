@@ -553,9 +553,13 @@ void CPlayerPed::SetModelIndex(uint uiModel)
     if(!GamePool_Ped_GetAt(m_dwGTAId)) return;
 
     if (uiModel >= 10000 && uiModel < TOTAL_DFF_MODEL_IDS) {
-        char numStr[16];
-        snprintf(numStr, sizeof(numStr), "%u", uiModel);
-        CModelInfo::SetupCustomPedModel(uiModel, numStr, numStr);
+        CBaseModelInfo* pExisting = CModelInfo::GetModelInfo(uiModel);
+        uintptr_t pedVtable = g_libGTASA + (VER_x32 ? 0x00667658 : 0x82F310);
+        if (!pExisting || *(uintptr_t*)pExisting != pedVtable || pExisting->m_nTxdIndex == -1) {
+            char numStr[16];
+            snprintf(numStr, sizeof(numStr), "%u", uiModel);
+            CModelInfo::SetupCustomPedModel(uiModel, numStr, numStr);
+        }
     }
 
     if(!IsPedModel(uiModel))
