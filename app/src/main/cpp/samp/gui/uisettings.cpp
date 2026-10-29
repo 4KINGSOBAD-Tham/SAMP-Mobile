@@ -56,7 +56,7 @@ float UISettings::m_dialogListItemHeight = 30.0f;
 
 /* buttonpanel (compact for Y, N, ::) */
 ImVec2 UISettings::m_buttonPanelPos = ImVec2(5.0f, 140.0f);
-ImVec2 UISettings::m_buttonPanelSize = ImVec2(130.0f, 44.0f);
+ImVec2 UISettings::m_buttonPanelSize = ImVec2(275.0f, 44.0f);
 
 /* voice button */
 ImVec2 UISettings::m_buttonVoicePos = ImVec2(500.0f, 180.0f/*170.0f*/);

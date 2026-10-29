@@ -13,9 +13,11 @@ bool bNeedEnterVehicle = false;
 ButtonPanel::ButtonPanel()
 	: Layout(Orientation::HORIZONTAL)
 {
-	// Only 3 quick buttons: Y, N, and :: (connected to Wheel menu)
 	m_bY = new Button("Y", UISettings::fontSize() / 2);
 	m_bN = new Button("N", UISettings::fontSize() / 2);
+	m_bH = new Button("H", UISettings::fontSize() / 2);
+	m_bInv = new Button("INV", UISettings::fontSize() / 2);
+	m_bPhone = new Button("TEL", UISettings::fontSize() / 2);
 	m_bWheel = new Button("::", UISettings::fontSize() / 2);
 
 	m_bY->setCallback([]() {
@@ -26,7 +28,22 @@ ButtonPanel::ButtonPanel()
 		LocalPlayerKeys.bKeys[ePadKeys::KEY_NO] = true;
 	});
 
-	// "::" button opens the circular Wheel menu system (/wheel)
+	m_bH->setCallback([]() {
+		LocalPlayerKeys.bKeys[ePadKeys::KEY_CTRL_BACK] = true;
+	});
+
+	m_bInv->setCallback([]() {
+		if (pNetGame) {
+			pNetGame->SendChatCommand("/inv");
+		}
+	});
+
+	m_bPhone->setCallback([]() {
+		if (pNetGame) {
+			pNetGame->SendChatCommand("/phone");
+		}
+	});
+
 	m_bWheel->setCallback([]() {
 		if (pNetGame) {
 			pNetGame->SendChatCommand("/wheel");
@@ -35,5 +52,8 @@ ButtonPanel::ButtonPanel()
 
 	this->addChild(m_bY);
 	this->addChild(m_bN);
+	this->addChild(m_bH);
+	this->addChild(m_bInv);
+	this->addChild(m_bPhone);
 	this->addChild(m_bWheel);
 }
