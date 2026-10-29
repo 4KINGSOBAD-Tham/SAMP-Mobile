@@ -363,6 +363,32 @@ public class CefManager {
         public void emitEvent(String event, String jsonArgs) {
             Log.d(TAG, "CEF Event from JS: " + event + " Args: " + jsonArgs);
 
+            if (event == null) return;
+
+            // =========================================================================
+            // UNIVERSAL BRIDGE: Handles all existing & future 10+ CEF Web UIs
+            // =========================================================================
+            // 1. Universal In-Game Command Execution (Web -> SA-MP)
+            if (event.startsWith("cmd:") || "cef:command".equals(event) || "cef:runCommand".equals(event) || "cef:cmd".equals(event)) {
+                String cmd = event.startsWith("cmd:") ? event.substring(4) : extractFirstArg(jsonArgs);
+                if (SAMP.getInstance() != null && cmd != null && !cmd.trim().isEmpty()) {
+                    String fullCmd = cmd.trim();
+                    if (!fullCmd.startsWith("/")) fullCmd = "/" + fullCmd;
+                    SAMP.getInstance().sendChatCommand(fullCmd);
+                }
+                return;
+            }
+
+            // 2. Universal Close / Hide UI
+            if (event.endsWith(":close") || event.endsWith("Close") || event.contains("closeUI") || event.contains("hideUI") || "cef:exit".equals(event)) {
+                hideBrowser();
+                String clean = event.replaceAll("(?i)(cef:|on|:|ui|browser)", "").trim().toLowerCase();
+                if (clean.startsWith("close") && clean.length() > 5 && SAMP.getInstance() != null) {
+                    SAMP.getInstance().sendChatCommand("/" + clean);
+                }
+                return;
+            }
+
             if ("cef:onLoginSubmit".equals(event) || "auth:submit_login".equals(event)) {
                 // Parse password argument from jsonArgs array [ "password" ]
                 final String pass = extractFirstArg(jsonArgs);
