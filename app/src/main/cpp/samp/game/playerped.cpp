@@ -3,18 +3,11 @@
 #include "../net/netgame.h"
 #include "../vendor/armhook/patch.h"
 #include <cmath>
-#include <unordered_map>
 // 0.3.7
 #include "Entity/CPedGTA.h"
 #include "Streaming.h"
 #include "World.h"
 #include "game/Models/ModelInfo.h"
-#include "Core/KeyGen.h"
-#include "Plugins/RpAnimBlendPlugin/RpAnimBlend.h"
-#include "Animation/AnimBlendAssociation.h"
-#include "Animation/AnimBlendHierarchy.h"
-#include "util.h"
-#include "Widgets/WidgetGta.h"
 
 extern CGame* pGame;
 extern CNetGame* pNetGame;
@@ -96,7 +89,7 @@ CPlayerPed::CPlayerPed(int iNum, int iSkin, float fX, float fY, float fZ, float 
     m_pPed->bDoesntDropWeaponsWhenDead = true;
 	ScriptCommand(&set_actor_immunities, m_dwGTAId, 0, 0, 1, 0, 0);
 	ScriptCommand(&set_actor_can_be_decapitated, m_dwGTAId, 0);
-    m_pPed->bNeverEverTargetThisPed = false;
+    m_pPed->bNeverEverTargetThisPed = true;
 
 	if (pNetGame)
 	{
@@ -333,91 +326,66 @@ bool IsTaskRunNamedOrSlideToCoord(void* pTask)
 	return false;
 }
 
-
-static std::unordered_map<uint32_t, int> s_animHashMap;
-static bool s_animHashMapInit = false;
-
-static void InitAnimMap()
+void* GetSubTaskFromTask(CPedIntelligence* pTask)
 {
-	if (s_animHashMapInit) return;
-	for (int i = 0; i < 1843; i++)
-	{
-		const char* pEntry = GetAnimByIdx(i);
-		if (!pEntry) continue;
-		const char* pColon = strchr(pEntry, ':');
-		if (pColon)
-		{
-			uint32_t hash = CKeyGen::GetUppercaseKey(pColon + 1);
-			s_animHashMap[hash] = i + 1; // 1-based index (sId)
-		}
-	}
-	s_animHashMapInit = true;
-}
-
-static bool IsLocomotionAnim(const char* pAnimName)
-{
-	if (!pAnimName) return false;
-	if (strncasecmp(pAnimName, "PED:", 4) != 0) {
-		return false;
-	}
-	const char* name = pAnimName + 4;
-	if (!strncasecmp(name, "walk_", 5)) return true;
-	if (!strncasecmp(name, "run_", 4)) return true;
-	if (!strncasecmp(name, "sprint_", 7)) return true;
-	if (!strncasecmp(name, "swat_run", 8)) return true;
-	if (!strncasecmp(name, "idle", 4)) return true;
-	if (!strncasecmp(name, "jog_", 4)) return true;
-	if (!strncasecmp(name, "woman_", 6)) return true;
-	if (!strncasecmp(name, "fightidle", 9)) return true;
-	if (!strncasecmp(name, "fight2idle", 10)) return true;
-	if (!strncasecmp(name, "roadcross", 9)) return true;
-	if (!strncasecmp(name, "turn_", 5)) return true;
-	if (!strncasecmp(name, "player_sneak", 12)) return true;
-	return false;
+	uintptr_t pVTableTask = *((uintptr_t*)pTask);
+	return ((void* (*)(void*))(*(void**)(pVTableTask + 12)))(pTask);
 }
 
 uint32_t CPlayerPed::GetCurrentAnimationIndex()
 {
-	if (!m_pPed || !m_pPed->m_pRwClump) return 0;
-	if (m_dwGTAId && !GamePool_Ped_GetAt(m_dwGTAId)) return 0;
+	/*int blendData = 4.0f;
 
-	InitAnimMap();
-
-	// 1. Check for partial animations first (melee attacks, fight styles, hits, damage)
-	CAnimBlendAssociation* pAssoc = RpAnimBlendClumpGetFirstAssociation(m_pPed->m_pRwClump, 0x10);
-	if (!pAssoc)
+	if (!m_pPed || !m_dwGTAId)
 	{
-		// 2. Check for other started animations (falls, knockdowns, getups, special anims)
-		pAssoc = RpAnimBlendClumpGetFirstAssociation(m_pPed->m_pRwClump, 0x01);
+		return 0;
 	}
 
-	if (pAssoc && (uintptr_t)pAssoc > 0x10000 && pAssoc->m_pHierarchy && (uintptr_t)pAssoc->m_pHierarchy > 0x10000)
+	if (!GamePool_Ped_GetAt(m_dwGTAId))
 	{
-		if (pAssoc->m_fBlendAmount <= 0.05f) return 0;
+		return 0;
+	}
 
-		auto it = s_animHashMap.find(pAssoc->m_pHierarchy->m_hashKey);
-		if (it != s_animHashMap.end())
+	if (!m_pPed->m_pRwObject)
+	{
+		return 0;
+	}
+	sizeof(CPedGTA);
+	CPedIntelligence* pIntelligence = m_pPed->m_pIntelligence;
+
+	if (pIntelligence)
+	{
+		void* pTask = pIntelligence->m_TaskMgr.m_aPrimaryTasks[3];
+
+		if (pTask)
 		{
-			int idx = it->second - 1;
-			const char* pEntry = GetAnimByIdx(idx);
-			if (pEntry && IsLocomotionAnim(pEntry))
+			while (!IsTaskRunNamedOrSlideToCoord(pTask))
+			{
+				pTask = GetSubTaskFromTask(pTask);
+				if (!pTask)
+				{
+					return 0;
+				}
+			}
+
+			const char* szName = (const char*)((uintptr_t)pTask + 13);
+			const char* szGroupName = (const char*)((uintptr_t)pTask + 37);
+
+			std::string szStr = std::string(szGroupName);
+			szStr += ":";
+			szStr += szName;
+
+			int idx = GetAnimIdxByName(szStr.c_str());
+			if (idx == -1)
 			{
 				return 0;
 			}
-
-			ANIMATION_DATA animData;
-			animData.iValue = 0;
-			animData.sId = (unsigned short)it->second;
-			animData.cFrameDelta = (unsigned char)(pAssoc->m_fBlendDelta > 0.0f ? (int)pAssoc->m_fBlendDelta : 4);
-			animData.cLoopA = pAssoc->IsRepeating() ? 1 : 0;
-			animData.cLoopX = pAssoc->HasXTranslation() ? 1 : 0;
-			animData.cLoopY = pAssoc->HasYTranslation() ? 1 : 0;
-			animData.cLoopF = 0;
-			animData.cTime = 0;
-			return animData.iValue;
+			else
+			{
+				return idx + 1;
+			}
 		}
-	}
-
+	}*/
 	return 0;
 }
 
@@ -425,15 +393,15 @@ bool CPlayerPed::IsPlayingAnimation(int iIndex)
 {
 	if (!m_pPed || !m_dwGTAId || (iIndex == 0) )
 	{
-		return false;
+		return 0;
 	}
 	if (!GamePool_Ped_GetAt(m_dwGTAId))
 	{
-		return false;
+		return 0;
 	}
-	if (!m_pPed->m_pRwObject || !m_pPed->m_pRwClump)
+	if (!m_pPed->m_pRwObject)
 	{
-		return false;
+		return 0;
 	}
 
 	const char* pAnim = GetAnimByIdx(iIndex - 1);
@@ -441,18 +409,20 @@ bool CPlayerPed::IsPlayingAnimation(int iIndex)
 	{
 		return false;
 	}
-	const char* pColon = strchr(pAnim, ':');
-	if (!pColon)
-	{
-		return false;
-	}
-	const char* pNameAnim = pColon + 1;
+	const char* pNameAnim = strchr(pAnim, ':') + 1;
 
-	//RpAnimBlendClumpGetAssociation(RpClump *,char const*)	000000000046AAF4
+    //RpAnimBlendClumpGetAssociation(RpClump *,char const*)	000000000046AAF4
 	uintptr_t blendAssoc = ((uintptr_t(*)(RpClump* clump, const char* szName))(g_libGTASA + (VER_x32 ? 0x00390A24 + 1:0x46AAF4)))
 			(m_pPed->m_pRwClump, pNameAnim);	// RpAnimBlendClumpGetAssociation
 
-	return (blendAssoc != 0);
+	if (blendAssoc)
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
 }
 
 bool IsBlendAssocGroupLoaded(int iGroup)
@@ -464,39 +434,52 @@ bool IsBlendAssocGroupLoaded(int iGroup)
 	return *(pBlendAssocGroup) != NULL;
 }
 
-void CPlayerPed::PlayAnimationFromIndex(int iIndex, float fDelta, int opt1, int opt2, int opt3, int opt4, int iTime)
+void CPlayerPed::PlayAnimationFromIndex(int iIndex, float fDelta)
 {
-	if (!iIndex || !m_pPed)
+	if (!iIndex)
 	{
+		RwMatrix mat;
+        mat = m_pPed->GetMatrix().ToRwMatrix();
+        m_pPed->SetPosn(mat.pos.x, mat.pos.y, mat.pos.z);
 		return;
 	}
+	std::string szAnim;
+	std::string szBlock;
 
+	char pszAnim[40];
+	char pszBlock[40];
+
+	memset(&pszAnim[0], 0, 40);
+	memset(&pszBlock[0], 0, 40);
+
+	bool bTest = false;
 	const char* pBegin = GetAnimByIdx(iIndex - 1);
 	if (!pBegin)
 	{
 		return;
 	}
-
-	const char* pColon = strchr(pBegin, ':');
-	if (!pColon)
+	while (*pBegin)
 	{
-		return;
+		if (*pBegin == ':')
+		{
+			pBegin++;
+			bTest = true;
+			continue;
+		}
+		if (!bTest)
+		{
+			szBlock += *pBegin;
+		}
+		if (bTest)
+		{
+			szAnim += *pBegin;
+		}
+		pBegin++;
 	}
 
-	char szBlock[40] = { 0 };
-	char szAnim[40] = { 0 };
-
-	size_t blockLen = (size_t)(pColon - pBegin);
-	if (blockLen >= sizeof(szBlock)) blockLen = sizeof(szBlock) - 1;
-	strncpy(szBlock, pBegin, blockLen);
-	szBlock[blockLen] = '\0';
-
-	strncpy(szAnim, pColon + 1, sizeof(szAnim) - 1);
-	szAnim[sizeof(szAnim) - 1] = '\0';
-
-	if (fDelta <= 0.0f) fDelta = 4.0f;
-
-	ApplyAnimation(szAnim, szBlock, fDelta, opt1, opt2, opt3, opt4, iTime);
+	strcpy(&pszAnim[0], szAnim.c_str());
+	strcpy(&pszBlock[0], szBlock.c_str());
+	ApplyAnimation(&pszAnim[0], &pszBlock[0], fDelta, 0, 1, 1, 0, 0);
 }
 
 // 0.3.7
@@ -526,24 +509,12 @@ void CPlayerPed::RestartIfWastedAt(CVector *vecRestart, float fRotation)
 
 bool IsPedModel(unsigned int iModelID)
 {
-    if(iModelID < 0 || iModelID >= TOTAL_DFF_MODEL_IDS) return false;
+    if(iModelID < 0 || iModelID > 20000) return false;
     auto dwModelArray = CModelInfo::ms_modelInfoPtrs;
 
     uintptr_t ModelInfo = reinterpret_cast<uintptr_t>(dwModelArray[iModelID]);
-    uintptr_t pedVtable = (uintptr_t)g_libGTASA + (VER_x32 ? 0x00667658 : 0x82F310);
-    if(ModelInfo && *(uintptr_t*)ModelInfo == pedVtable)
+    if(ModelInfo && *(uintptr_t*)ModelInfo == (uintptr_t)g_libGTASA + (VER_x32 ? 0x00667658 : 0x82F310))
         return true;
-
-    // Auto-setup if numeric custom skin ID >= 10000 exists in streaming archive
-    if (iModelID >= 10000 && iModelID < TOTAL_DFF_MODEL_IDS) {
-        if (CStreaming::ms_aInfoForModel[iModelID].m_nCdSize > 0) {
-            char numStr[16];
-            snprintf(numStr, sizeof(numStr), "%u", iModelID);
-            if (CModelInfo::SetupCustomPedModel(iModelID, numStr, numStr)) {
-                return true;
-            }
-        }
-    }
 
     return false;
 }
@@ -551,17 +522,6 @@ bool IsPedModel(unsigned int iModelID)
 void CPlayerPed::SetModelIndex(uint uiModel)
 {
     if(!GamePool_Ped_GetAt(m_dwGTAId)) return;
-
-    if (uiModel >= 10000 && uiModel < TOTAL_DFF_MODEL_IDS) {
-        CBaseModelInfo* pExisting = CModelInfo::GetModelInfo(uiModel);
-        uintptr_t pedVtable = g_libGTASA + (VER_x32 ? 0x00667658 : 0x82F310);
-        if (!pExisting || *(uintptr_t*)pExisting != pedVtable || pExisting->m_nTxdIndex == -1) {
-            char numStr[16];
-            snprintf(numStr, sizeof(numStr), "%u", uiModel);
-            CModelInfo::SetupCustomPedModel(uiModel, numStr, numStr);
-        }
-    }
-
     if(!IsPedModel(uiModel))
         uiModel = 0;
 
@@ -605,8 +565,6 @@ void CPlayerPed::GiveWeapon(int iWeaponId, int iAmmo)
 
 void CPlayerPed::SetArmedWeapon(uint8_t weapon, bool unk)
 {
-	if (!m_pPed) return;
-	CHook::CallFunction<void>(g_libGTASA + (VER_x32 ? 0x004A521C + 1 : 0x59B86C), m_pPed, (int)weapon);
 }
 // 0.3.7
 void CPlayerPed::SetTargetRotation(float fRotation)
@@ -723,54 +681,8 @@ uint8_t CPlayerPed::GetAdditionalKeys()
 	return byteRet;
 }
 
-bool CPlayerPed::IsMeleeAttacking()
-{
-	uint32_t dwNow = GetTickCount();
-	if (dwNow - g_dwLastLocalPlayerMeleeAttackTick < 400)
-	{
-		return true;
-	}
-
-	if (IsAttackWidgetTouched())
-	{
-		g_dwLastLocalPlayerMeleeAttackTick = dwNow;
-		return true;
-	}
-
-	if (m_pPed)
-	{
-		if (m_pPed->m_nPedState == PEDSTATE_ATTACK || m_pPed->m_nPedState == PEDSTATE_FIGHT || m_pPed->bFiringWeapon)
-		{
-			return true;
-		}
-
-		if (m_pPed->m_pRwClump)
-		{
-			CAnimBlendAssociation* pAssoc = RpAnimBlendClumpGetFirstAssociation(m_pPed->m_pRwClump, 0x10);
-			if (pAssoc && (uintptr_t)pAssoc > 0x10000 && pAssoc->m_fBlendAmount > 0.1f)
-			{
-				return true;
-			}
-		}
-	}
-
-	return false;
-}
-
 uint16_t CPlayerPed::GetKeys(uint16_t *lrAnalog, uint16_t *udAnalog, bool clear)
 {
-	if (m_pPed && m_pPed == GamePool_FindPlayerPed())
-	{
-		if (!IsInVehicle())
-		{
-			bool bIsAttacking = IsMeleeAttacking();
-			if (bIsAttacking)
-			{
-				LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = true;
-			}
-		}
-	}
-
 	*lrAnalog = LocalPlayerKeys.wKeyLR;
 	*udAnalog = LocalPlayerKeys.wKeyUD;
 
@@ -868,6 +780,8 @@ void CPlayerPed::GetTransformedBonePosition(int iBoneID, CVector* vecOut)
 
 void CPlayerPed::ApplyAnimation(const char* szAnimName, const char* szAnimLib, float fT, int opt1, int opt2, int opt3, int opt4, int iTime)
 {
+	int iWaitAnimLoad = 0;
+
 	if(!m_pPed) return;
 	if(!GamePool_Ped_GetAt(m_dwGTAId)) return;
 
@@ -877,7 +791,7 @@ void CPlayerPed::ApplyAnimation(const char* szAnimName, const char* szAnimLib, f
 	if(!pGame->IsAnimationLoaded(szAnimLib))
 	{
 		pGame->RequestAnimation(szAnimLib);
-		CStreaming::LoadAllRequestedModels(false);
+        ScriptCommand(&apply_animation, m_dwGTAId, szAnimName, szAnimLib, fT, opt1, opt2, opt3, opt4, iTime);
 	}
 
 	ScriptCommand(&apply_animation, m_dwGTAId, szAnimName, szAnimLib, fT, opt1, opt2, opt3, opt4, iTime);
@@ -1415,27 +1329,6 @@ void CPlayerPed::ProcessBulletData(BULLET_DATA *btData)
 						bsBullet.Write((char)ID_BULLET_SYNC);
 						bsBullet.Write((char*)&btSync, sizeof(BULLET_SYNC_DATA));
 						pNetGame->GetRakClient()->Send(&bsBullet, PacketPriority::HIGH_PRIORITY, PacketReliability::UNRELIABLE_SEQUENCED, 0);
-
-						if (byteHitType == BULLET_HIT_TYPE_PLAYER && InstanceID != INVALID_PLAYER_ID)
-						{
-							CPlayerPool* pPool = pNetGame->GetPlayerPool();
-							if (pPool && pPool->GetLocalPlayer())
-							{
-								uint8_t wId = pLocalPlayerPed->GetCurrentWeapon();
-								float fBulletDmg = GetWeaponDamage(wId);
-								pPool->GetLocalPlayer()->SendGiveDamageEvent(InstanceID, fBulletDmg, wId, PED_PIECE_TORSO);
-							}
-						}
-						else if (byteHitType == 2 /* BULLET_HIT_TYPE_ACTOR */ && InstanceID != INVALID_PLAYER_ID)
-						{
-							CPlayerPool* pPool = pNetGame->GetPlayerPool();
-							if (pPool && pPool->GetLocalPlayer())
-							{
-								uint8_t wId = pLocalPlayerPed->GetCurrentWeapon();
-								float fBulletDmg = GetWeaponDamage(wId);
-								pPool->GetLocalPlayer()->SendGiveDamageActorEvent(InstanceID, fBulletDmg, wId, PED_PIECE_TORSO);
-							}
-						}
 					}
 				}
 			}
@@ -2249,8 +2142,7 @@ void CPlayerPed::ProcessCuffAndCarry()
 
 void CPlayerPed::SetCurrentWeapon(uint8_t weaponType)
 {
-	if (!m_pPed) return;
-	CHook::CallFunction<void>(g_libGTASA + (VER_x32 ? 0x004A521C + 1 : 0x59B86C), m_pPed, (int)weaponType);
+	((int(*)(uintptr_t, uint8_t))(g_libGTASA + 0x4A51AC + 1))((uintptr_t)m_pPed, weaponType);
 }
 
 float CPlayerPed::GetDistanceFromVehicle(CVehicle *pVehicle)

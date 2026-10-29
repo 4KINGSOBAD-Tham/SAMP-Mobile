@@ -1,4 +1,4 @@
-package com.samp.mobile.launcher.fragments;
+﻿package com.samp.mobile.launcher.fragments;
 
 import android.app.AlertDialog;
 import android.app.Dialog;
@@ -59,7 +59,7 @@ public class HomeFragment extends Fragment {
     // Config defaults (updated remotely from security.json)
     private String mServerAddress = "192.168.1.114";
     private int mServerPort = 7777;
-    private String mServerName = "[TH] 4KING ROLEPLAY";
+    private String mServerName = "ChitChat Town Roleplay";
     private boolean mIsServerOnline = false;
 
     // Mod Patch Config (updated remotely from security.json)
@@ -154,76 +154,27 @@ public class HomeFragment extends Fragment {
         if (mBtnStartGame != null) {
             mBtnStartGame.setOnTouchListener(new ButtonAnimator(getContext(), mBtnStartGame));
             mBtnStartGame.setOnClickListener(v -> {
-                // 1. ถ้ายังไม่มีตัวเกมหลัก -> ให้ดาวน์โหลดตัวเกมหลักก่อน
-                if (!GameDataDownloadDialog.isGameDataInstalled()) {
-                    GameDataDownloadDialog.show(getActivity(), () -> {
-                        updateActionButtons();
-                    });
-                    return;
-                }
-
-                // 2. ถ้ามีอัปเดตม็อดที่จำเป็นต้องลง -> บล็อกการเริ่มเกม
-                if (getContext() != null) {
-                    int installedModVer = GameDataDownloadDialog.getInstalledModVersion(getContext());
-                    boolean needModUpdate = mModUpdateRequired && (installedModVer < mRemoteModVersion);
-                    if (needModUpdate) {
-                        Toast.makeText(getContext(), "⚠️ กรุณากดปุ่ม 'อัปเดตม็อด' ก่อนเริ่มเกม!", Toast.LENGTH_LONG).show();
-                        return;
-                    }
-                }
-
-                // 3. ตรวจสอบชื่อตัวละคร
                 if (mNicknameEdit != null) {
                     String name = mNicknameEdit.getText().toString().trim();
                     if (name.isEmpty()) {
-                        Toast.makeText(getContext(), "กรุณาใส่ชื่อตัวละครก่อนเริ่มเกม!", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getContext(), "เธเธฃเธธเธ“เธฒเธเธฃเธญเธเธเธทเนเธญเธ•เธฑเธงเธฅเธฐเธเธฃเธเนเธญเธเน€เธเนเธฒเน€เธฅเนเธ!", Toast.LENGTH_SHORT).show();
                         mNicknameEdit.requestFocus();
                         return;
                     }
                     SettingsHelper.setNickName(requireContext(), name);
                 }
 
-                // Main 4KING Server
-                SAMPServerInfo targetServer = null;
-                if (getActivity() instanceof MainActivity) {
-                    MainActivity act = (MainActivity) getActivity();
-                    if (!act.getServerList().isEmpty()) {
-                        targetServer = act.getServerList().get(0);
-                    }
-                }
+                SAMPServerInfo targetServer = new SAMPServerInfo();
+                targetServer.setId(1);
+                targetServer.setServerName(mServerName);
+                targetServer.setAddress(mServerAddress);
+                targetServer.setPort(mServerPort);
+                targetServer.setCurrentPlayerCount(0);
+                targetServer.setMaxPlayerCount(500);
+                targetServer.setHasPassword(false);
+                targetServer.setServerStatus(SAMPServerInfo.Status.ONLINE);
 
-                if (targetServer == null) {
-                    targetServer = new SAMPServerInfo();
-                    targetServer.setId(1);
-                    targetServer.setServerName(mServerName);
-                    targetServer.setAddress(mServerAddress);
-                    targetServer.setPort(mServerPort);
-                    targetServer.setCurrentPlayerCount(0);
-                    targetServer.setMaxPlayerCount(500);
-                    targetServer.setHasPassword(false);
-                    targetServer.setServerStatus(mIsServerOnline ? SAMPServerInfo.Status.ONLINE : SAMPServerInfo.Status.OFFLINE);
-                } else {
-                    targetServer.setServerName(mServerName);
-                    targetServer.setAddress(mServerAddress);
-                    targetServer.setPort(mServerPort);
-                }
-
-                final SAMPServerInfo finalTargetServer = targetServer;
-
-                // เตือนกรณี Server OFFLINE
-                if (!mIsServerOnline) {
-                    new AlertDialog.Builder(requireContext())
-                            .setTitle("🔴 เซิร์ฟเวอร์ปิดให้บริการ")
-                            .setMessage("ขณะนี้เซิร์ฟเวอร์ยังไม่เปิดให้บริการ หรือกำลังปิดปรับปรุง\n\nต้องการลองเชื่อมต่อไปยังเซิร์ฟเวอร์หรือไม่?")
-                            .setPositiveButton("ลองเชื่อมต่อ", (dialog, which) -> {
-                                proceedToLaunchGame(finalTargetServer);
-                            })
-                            .setNegativeButton("ยกเลิก", null)
-                            .show();
-                    return;
-                }
-
-                proceedToLaunchGame(finalTargetServer);
+                proceedToLaunchGame(targetServer);
             });
         }
 
@@ -234,7 +185,20 @@ public class HomeFragment extends Fragment {
     /**
      * อัปเดตสถานะและข้อความของปุ่มเริ่มเกม และปุ่มอัปเดตม็อด
      */
-    private void updateActionButtons() {
+        private void updateActionButtons() {
+        if (getActivity() == null) return;
+        getActivity().runOnUiThread(() -> {
+            if (mBtnStartGame == null) return;
+            if (mBtnUpdate != null) {
+                mBtnUpdate.setVisibility(View.GONE);
+            }
+            mBtnStartGame.setText("เน€เธเนเธฒเน€เธฅเนเธเน€เธเธก");
+            mBtnStartGame.setEnabled(true);
+            mBtnStartGame.setAlpha(1.0f);
+        });
+    }
+
+    private void disabled_updateActionButtons_old() {
         if (getActivity() == null) return;
         getActivity().runOnUiThread(() -> {
             if (mBtnStartGame == null || mBtnUpdate == null || getContext() == null) return;
@@ -276,7 +240,11 @@ public class HomeFragment extends Fragment {
         });
     }
 
-    private void proceedToLaunchGame(final SAMPServerInfo targetServer) {
+        private void proceedToLaunchGame(final SAMPServerInfo targetServer) {
+        startAntiCheatAndLaunch(targetServer);
+    }
+
+    private void disabled_proceedToLaunchGame_old(final SAMPServerInfo targetServer) {
         if (!GameDataDownloadDialog.isGameDataInstalled()) {
             Toast.makeText(getContext(), "ยังไม่พบข้อมูลตัวเกม กรุณาดาวน์โหลด DATA ก่อนเข้าเล่น", Toast.LENGTH_SHORT).show();
             GameDataDownloadDialog.show(getActivity(), () -> {

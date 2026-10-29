@@ -1,4 +1,4 @@
-package com.samp.mobile.game.ui;
+﻿package com.samp.mobile.game.ui;
 
 import android.app.Activity;
 import android.graphics.Color;
@@ -357,7 +357,7 @@ public class CefManager {
         public void emitEvent(String event, String jsonArgs) {
             Log.d(TAG, "CEF Event from JS: " + event + " Args: " + jsonArgs);
 
-            if ("cef:onLoginSubmit".equals(event)) {
+            if ("cef:onLoginSubmit".equals(event) || "auth:submit_login".equals(event)) {
                 // Parse password argument from jsonArgs array [ "password" ]
                 final String pass = extractFirstArg(jsonArgs);
                 if (SAMP.getInstance() != null && SAMP.getInstance().getDialogManager() != null) {
@@ -369,7 +369,7 @@ public class CefManager {
                     });
                 }
                 hideBrowser();
-            } else if ("cef:onRegisterSubmit".equals(event)) {
+            } else if ("cef:onRegisterSubmit".equals(event) || "auth:submit_register".equals(event)) {
                 final String pass = extractFirstArg(jsonArgs);
                 if (SAMP.getInstance() != null && SAMP.getInstance().getDialogManager() != null) {
                     mMainHandler.post(new Runnable() {

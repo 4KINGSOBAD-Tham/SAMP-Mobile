@@ -76,8 +76,18 @@ CAnimBlendAssociation* RpAnimBlendClumpGetAssociation(RpClump* clump, uint32 ani
 
 // 0x4D15E0
 CAnimBlendAssociation* RpAnimBlendClumpGetFirstAssociation(RpClump* clump) {
-    if (!clump) return nullptr;
-    return RpAnimBlendClumpGetFirstAssociation(clump, 0x10 | 0x01);
+    int *v4; // r4
+    int result; // r0
+
+    v4 = *(int **)(clump + ClumpOffset);
+    result = RpAnimBlendClumpIsInitialized(clump);
+    if ( result )
+    {
+        result = *v4;
+        if ( *v4 )
+            result -= 4;
+    }
+    return reinterpret_cast<CAnimBlendAssociation *>(result);
 }
 
 // 0x4D6A70

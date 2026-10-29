@@ -1,4 +1,4 @@
-package com.samp.mobile.launcher;
+﻿package com.samp.mobile.launcher;
 
 import android.app.Activity;
 import android.content.Context;

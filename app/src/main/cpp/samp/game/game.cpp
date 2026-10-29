@@ -86,6 +86,11 @@ void InstallWidgetHooks();
 void BindCustomSkinsFromImg(const char* customIdePath) {
     FLog("[4KING] Starting BindCustomSkinsFromImg (custom.ide: %s)...", customIdePath ? customIdePath : "null");
 
+    if (!customIdePath || access(customIdePath, F_OK) != 0) {
+        FLog("[4KING] custom.ide not accessible");
+        return;
+    }
+
     struct CustomPedDef {
         int id;
         std::string modelName;
@@ -93,70 +98,131 @@ void BindCustomSkinsFromImg(const char* customIdePath) {
     };
     std::vector<CustomPedDef> customPeds;
 
-    // Check custom.ide candidates if path not specified or inaccessible
-    char idePathToUse[512] = {0};
-    if (customIdePath && access(customIdePath, F_OK) == 0) {
-        strncpy(idePathToUse, customIdePath, sizeof(idePathToUse) - 1);
-    } else {
-        const char* ideRoots[] = {
-            g_pszStorage,
-            "/storage/emulated/0/GTA/",
-            "/storage/emulated/0/",
-            "/sdcard/GTA/",
-            "/storage/emulated/0/Android/data/com.sobad.game/files/",
-            "/storage/emulated/0/Android/data/com.samp.mobile/files/"
-        };
-        for (const char* root : ideRoots) {
-            if (!root || !root[0]) continue;
-            char t1[512], t2[512];
-            snprintf(t1, sizeof(t1), "%sSAMP/custom.ide", root);
-            snprintf(t2, sizeof(t2), "%scustom.ide", root);
-            if (access(t1, F_OK) == 0) { strncpy(idePathToUse, t1, sizeof(idePathToUse) - 1); break; }
-            if (access(t2, F_OK) == 0) { strncpy(idePathToUse, t2, sizeof(idePathToUse) - 1); break; }
-        }
-    }
+    FILE* fIde = fopen(customIdePath, "r");
+    if (fIde) {
+        char line[512];
+        bool inPedsSection = false;
+        while (fgets(line, sizeof(line), fIde)) {
+            char* p = line;
+            while (*p == ' ' || *p == '\t') p++;
+            if (*p == '#' || *p == '\r' || *p == '\n' || *p == '\0') continue;
 
-    if (idePathToUse[0]) {
-        FILE* fIde = fopen(idePathToUse, "r");
-        if (fIde) {
-            char line[512];
-            bool inPedsSection = false;
-            while (fgets(line, sizeof(line), fIde)) {
-                char* p = line;
-                while (*p == ' ' || *p == '\t') p++;
-                if (*p == '#' || *p == '\r' || *p == '\n' || *p == '\0') continue;
+            if (!strncasecmp(p, "peds", 4)) {
+                inPedsSection = true;
+                continue;
+            }
+            if (!strncasecmp(p, "end", 3)) {
+                inPedsSection = false;
+                continue;
+            }
 
-                if (!strncasecmp(p, "peds", 4)) {
-                    inPedsSection = true;
-                    continue;
-                }
-                if (!strncasecmp(p, "end", 3)) {
-                    inPedsSection = false;
-                    continue;
-                }
+            if (inPedsSection) {
+                int id = 0;
+                char model[32] = {0};
+                char txd[32] = {0};
+                char* token = strtok(p, ",\t\r\n ");
+                if (token) id = atoi(token);
+                token = strtok(nullptr, ",\t\r\n ");
+                if (token) strncpy(model, token, sizeof(model) - 1);
+                token = strtok(nullptr, ",\t\r\n ");
+                if (token) strncpy(txd, token, sizeof(txd) - 1);
 
-                if (inPedsSection) {
-                    int id = 0;
-                    char model[32] = {0};
-                    char txd[32] = {0};
-                    char* token = strtok(p, ",\t\r\n ");
-                    if (token) id = atoi(token);
-                    token = strtok(nullptr, ",\t\r\n ");
-                    if (token) strncpy(model, token, sizeof(model) - 1);
-                    token = strtok(nullptr, ",\t\r\n ");
-                    if (token) strncpy(txd, token, sizeof(txd) - 1);
-
-                    if (id > 0 && model[0]) {
-                        customPeds.push_back({id, std::string(model), std::string(txd[0] ? txd : model)});
-                        FLog("[4KING] custom.ide entry: id=%d, model='%s', txd='%s'", id, model, txd[0] ? txd : model);
-                    }
+                if (id > 0 && model[0]) {
+                    customPeds.push_back({id, std::string(model), std::string(txd[0] ? txd : model)});
+                    FLog("[4KING] custom.ide entry: id=%d, model='%s', txd='%s'", id, model, txd[0] ? txd : model);
                 }
             }
-            fclose(fIde);
         }
-    } else {
-        FLog("[4KING] custom.ide not found in any standard path");
+        fclose(fIde);
     }
+
+    // Locate custom IMG file
+    const char* imgCandidates[] = {
+        "texdb/samp.img",
+        "TEXDB/samp.img",
+        "TEXDB/SAMP.IMG",
+        "texdb/SAMP.IMG",
+        "SAMP/samp.img",
+        "SAMP/SAMP.IMG",
+        "SAMP/custom.img",
+        "custom.img"
+    };
+
+    char imgFullPath[512] = {0};
+    const char* imgRelName = nullptr;
+    for (const char* cand : imgCandidates) {
+        char testPath[512];
+        snprintf(testPath, sizeof(testPath), "%s%s", g_pszStorage, cand);
+        if (access(testPath, F_OK) == 0) {
+            strncpy(imgFullPath, testPath, sizeof(imgFullPath) - 1);
+            imgRelName = cand;
+            FLog("[4KING] Found custom IMG at: %s", imgFullPath);
+            break;
+        }
+    }
+
+    if (!imgFullPath[0]) {
+        FLog("[4KING] Warning: No custom IMG file found!");
+        return;
+    }
+
+    // Find or assign slot in CStreaming::ms_files
+    int imgIndex = -1;
+    for (int i = 0; i < TOTAL_IMG_ARCHIVES; i++) {
+        if (CStreaming::ms_files[i].m_szName[0]) {
+            if (strcasestr(CStreaming::ms_files[i].m_szName, "samp.img") ||
+                strcasestr(CStreaming::ms_files[i].m_szName, "custom.img")) {
+                imgIndex = i;
+                break;
+            }
+        }
+    }
+
+    if (imgIndex == -1) {
+        for (int i = 0; i < TOTAL_IMG_ARCHIVES; i++) {
+            if (!CStreaming::ms_files[i].m_szName[0]) {
+                imgIndex = i;
+                break;
+            }
+        }
+        if (imgIndex == -1) imgIndex = 2; // fallback to slot 2 (SAMP.IMG slot)
+    }
+
+    // Ensure StreamHandle is open
+    if (CStreaming::ms_files[imgIndex].m_StreamHandle == 0) {
+        char cdOpenName[128];
+        snprintf(cdOpenName, sizeof(cdOpenName), "TEXDB/%s", strrchr(imgRelName, '/') ? strrchr(imgRelName, '/') + 1 : imgRelName);
+        int32 handle = CdStreamOpen(imgRelName);
+        if (handle == 0) handle = CdStreamOpen(cdOpenName);
+        if (handle == 0) handle = CdStreamOpen(imgFullPath);
+        CStreaming::ms_files[imgIndex].m_StreamHandle = handle;
+        strncpy(CStreaming::ms_files[imgIndex].m_szName, imgRelName, sizeof(CStreaming::ms_files[imgIndex].m_szName) - 1);
+        CStreaming::ms_files[imgIndex].m_bNotPlayerImg = true;
+        FLog("[4KING] Opened CdStream for %s -> slot %d, handle=0x%X", imgRelName, imgIndex, handle);
+    } else {
+        FLog("[4KING] Using existing CdStream in slot %d, handle=0x%X", imgIndex, CStreaming::ms_files[imgIndex].m_StreamHandle);
+    }
+
+    // Read IMG directory
+    FILE* fImg = fopen(imgFullPath, "rb");
+    if (!fImg) {
+        FLog("[4KING] Error: Cannot open IMG file %s", imgFullPath);
+        return;
+    }
+
+    char magic[4];
+    uint32_t numEntries = 0;
+    if (fread(magic, 1, 4, fImg) != 4 || memcmp(magic, "VER2", 4) != 0) {
+        FLog("[4KING] Invalid IMG header: %.4s", magic);
+        fclose(fImg);
+        return;
+    }
+    if (fread(&numEntries, sizeof(uint32_t), 1, fImg) != 1) {
+        fclose(fImg);
+        return;
+    }
+
+    FLog("[4KING] Processing %u entries in %s...", numEntries, imgFullPath);
 
 #pragma pack(push, 1)
     struct ImgEntry {
@@ -167,85 +233,46 @@ void BindCustomSkinsFromImg(const char* customIdePath) {
     };
 #pragma pack(pop)
 
-    auto ProcessImg = [&](const char* imgFullPath, const char* imgRelName) {
-        if (!imgFullPath || access(imgFullPath, F_OK) != 0) return;
-
-        int imgIndex = -1;
-        for (int i = 0; i < TOTAL_IMG_ARCHIVES; i++) {
-            if (CStreaming::ms_files[i].m_szName[0]) {
-                if (!strcasecmp(CStreaming::ms_files[i].m_szName, imgRelName) ||
-                    !strcasecmp(CStreaming::ms_files[i].m_szName, imgFullPath)) {
-                    imgIndex = i;
-                    break;
-                }
-            }
-        }
-
-        if (imgIndex == -1) {
-            for (int i = 0; i < TOTAL_IMG_ARCHIVES; i++) {
-                if (!CStreaming::ms_files[i].m_szName[0]) {
-                    imgIndex = i;
-                    break;
-                }
-            }
-        }
-        if (imgIndex == -1) return;
-
-        if (CStreaming::ms_files[imgIndex].m_StreamHandle == 0) {
-            char cdOpenName[128];
-            const char* baseName = strrchr(imgRelName, '/') ? strrchr(imgRelName, '/') + 1 : imgRelName;
-            snprintf(cdOpenName, sizeof(cdOpenName), "TEXDB/%s", baseName);
-            int32 handle = CdStreamOpen(imgRelName);
-            if (handle == 0) handle = CdStreamOpen(cdOpenName);
-            if (handle == 0) handle = CdStreamOpen(imgFullPath);
-            if (handle == 0) {
-                FLog("[4KING] Failed to open CdStream for %s", imgFullPath);
-                return;
-            }
-            CStreaming::ms_files[imgIndex].m_StreamHandle = handle;
-            strncpy(CStreaming::ms_files[imgIndex].m_szName, imgRelName, sizeof(CStreaming::ms_files[imgIndex].m_szName) - 1);
-            CStreaming::ms_files[imgIndex].m_bNotPlayerImg = true;
-            FLog("[4KING] Opened CdStream for %s -> slot %d, handle=0x%X", imgRelName, imgIndex, handle);
-        }
-
-        FILE* fImg = fopen(imgFullPath, "rb");
-        if (!fImg) return;
-        char magic[4];
-        uint32_t numEntries = 0;
-        if (fread(magic, 1, 4, fImg) != 4 || memcmp(magic, "VER2", 4) != 0 || fread(&numEntries, 4, 1, fImg) != 1) {
-            fclose(fImg);
-            return;
-        }
-
-        std::vector<ImgEntry> entries(numEntries);
-        if (fread(entries.data(), sizeof(ImgEntry), numEntries, fImg) != numEntries) {
-            fclose(fImg);
-            return;
-        }
+    std::vector<ImgEntry> entries(numEntries);
+    if (fread(entries.data(), sizeof(ImgEntry), numEntries, fImg) != numEntries) {
+        FLog("[4KING] Failed to read all entries from IMG");
         fclose(fImg);
-        FLog("[4KING] Loaded %u entries from %s (slot %d)", numEntries, imgFullPath, imgIndex);
+        return;
+    }
+    fclose(fImg);
 
-        for (const auto& ped : customPeds) {
-            char expectedDff1[32], expectedDff2[32];
-            char expectedTxd1[32], expectedTxd2[32];
-            snprintf(expectedDff1, sizeof(expectedDff1), "%s.dff", ped.modelName.c_str());
-            snprintf(expectedDff2, sizeof(expectedDff2), "%d.dff", ped.id);
-            snprintf(expectedTxd1, sizeof(expectedTxd1), "%s.txd", ped.txdName.c_str());
-            snprintf(expectedTxd2, sizeof(expectedTxd2), "%d.txd", ped.id);
+    // Bind custom.ide entries
+    for (const auto& ped : customPeds) {
+        char expectedDff1[32];
+        char expectedDff2[32];
+        char expectedTxd1[32];
+        char expectedTxd2[32];
 
-            const ImgEntry* pDffEntry = nullptr;
-            const ImgEntry* pTxdEntry = nullptr;
-            for (const auto& ent : entries) {
-                if (!pDffEntry && (!strcasecmp(ent.name, expectedDff1) || !strcasecmp(ent.name, expectedDff2))) {
+        snprintf(expectedDff1, sizeof(expectedDff1), "%s.dff", ped.modelName.c_str());
+        snprintf(expectedDff2, sizeof(expectedDff2), "%d.dff", ped.id);
+        snprintf(expectedTxd1, sizeof(expectedTxd1), "%s.txd", ped.txdName.c_str());
+        snprintf(expectedTxd2, sizeof(expectedTxd2), "%d.txd", ped.id);
+
+        const ImgEntry* pDffEntry = nullptr;
+        const ImgEntry* pTxdEntry = nullptr;
+
+        for (const auto& ent : entries) {
+            if (!pDffEntry) {
+                if (!strcasecmp(ent.name, expectedDff1) || !strcasecmp(ent.name, expectedDff2)) {
                     pDffEntry = &ent;
                 }
-                if (!pTxdEntry && (!strcasecmp(ent.name, expectedTxd1) || !strcasecmp(ent.name, expectedTxd2))) {
+            }
+            if (!pTxdEntry) {
+                if (!strcasecmp(ent.name, expectedTxd1) || !strcasecmp(ent.name, expectedTxd2)) {
                     pTxdEntry = &ent;
                 }
-                if (pDffEntry && pTxdEntry) break;
             }
+            if (pDffEntry && pTxdEntry) break;
+        }
 
-            if (pDffEntry && ped.id >= 0 && ped.id < RESOURCE_ID_TOTAL) {
+        // Rebind DFF
+        if (pDffEntry) {
+            if (ped.id >= 0 && ped.id < RESOURCE_ID_TOTAL) {
                 if (CStreaming::ms_aInfoForModel[ped.id].m_nLoadState == LOADSTATE_LOADED) {
                     CStreaming::RemoveModel(ped.id);
                 }
@@ -258,57 +285,73 @@ void BindCustomSkinsFromImg(const char* customIdePath) {
                 info.m_nNextIndex = -1;
                 info.m_nPrevIndex = -1;
                 info.m_nNextIndexOnCd = -1;
+
                 FLog("[4KING] >>> BOUND DFF: ID %d ('%s') -> %s in %s (offset: %u, size: %u, imgId: %d)",
                      ped.id, ped.modelName.c_str(), pDffEntry->name, imgRelName, pDffEntry->offset, pDffEntry->size, imgIndex);
             }
+        } else {
+            FLog("[4KING] >>> WARNING: DFF not found in IMG for ID %d (tried '%s', '%s')",
+                 ped.id, expectedDff1, expectedDff2);
+        }
 
-            if (pTxdEntry) {
-                int txdSlot = CTxdStore::FindTxdSlot(ped.txdName.c_str());
+        // Rebind TXD
+        if (pTxdEntry) {
+            int txdSlot = CTxdStore::FindTxdSlot(ped.txdName.c_str());
+            if (txdSlot == -1) {
+                txdSlot = CTxdStore::AddTxdSlot(ped.txdName.c_str(), nullptr, false);
+            }
+            if (txdSlot == -1) {
+                char numTxd[32];
+                snprintf(numTxd, sizeof(numTxd), "%d", ped.id);
+                txdSlot = CTxdStore::FindTxdSlot(numTxd);
                 if (txdSlot == -1) {
-                    txdSlot = CTxdStore::AddTxdSlot(ped.txdName.c_str(), nullptr, false);
-                }
-                if (txdSlot == -1) {
-                    char numTxd[32];
-                    snprintf(numTxd, sizeof(numTxd), "%d", ped.id);
-                    txdSlot = CTxdStore::FindTxdSlot(numTxd);
-                    if (txdSlot == -1) txdSlot = CTxdStore::AddTxdSlot(numTxd, nullptr, false);
-                }
-                if (txdSlot != -1) {
-                    int txdResourceId = RESOURCE_ID_TXD + txdSlot;
-                    if (txdResourceId < RESOURCE_ID_TOTAL) {
-                        if (CStreaming::ms_aInfoForModel[txdResourceId].m_nLoadState == LOADSTATE_LOADED) {
-                            CStreaming::RemoveModel(txdResourceId);
-                        }
-                        CStreamingInfo& txdInfo = CStreaming::ms_aInfoForModel[txdResourceId];
-                        txdInfo.m_nImgId = imgIndex;
-                        txdInfo.m_nCdPosn = pTxdEntry->offset;
-                        txdInfo.m_nCdSize = pTxdEntry->size;
-                        txdInfo.m_nLoadState = LOADSTATE_NOT_LOADED;
-                        txdInfo.m_nFlags = 0;
-                        txdInfo.m_nNextIndex = -1;
-                        txdInfo.m_nPrevIndex = -1;
-                        txdInfo.m_nNextIndexOnCd = -1;
-
-                        CBaseModelInfo* pModel = CModelInfo::GetModelInfo(ped.id);
-                        if (pModel) pModel->m_nTxdIndex = txdSlot;
-                        FLog("[4KING] >>> BOUND TXD: ID %d ('%s') -> %s in %s (slot: %d, resource: %d, offset: %u, size: %u)",
-                             ped.id, ped.txdName.c_str(), pTxdEntry->name, imgRelName, txdSlot, txdResourceId, pTxdEntry->offset, pTxdEntry->size);
-                    }
+                    txdSlot = CTxdStore::AddTxdSlot(numTxd, nullptr, false);
                 }
             }
 
-            CModelInfo::SetupCustomPedModel(ped.id, ped.modelName.c_str(), ped.txdName.c_str());
-        }
+            if (txdSlot != -1) {
+                int txdResourceId = RESOURCE_ID_TXD + txdSlot;
+                if (txdResourceId < RESOURCE_ID_TOTAL) {
+                    if (CStreaming::ms_aInfoForModel[txdResourceId].m_nLoadState == LOADSTATE_LOADED) {
+                        CStreaming::RemoveModel(txdResourceId);
+                    }
+                    CStreamingInfo& txdInfo = CStreaming::ms_aInfoForModel[txdResourceId];
+                    txdInfo.m_nImgId = imgIndex;
+                    txdInfo.m_nCdPosn = pTxdEntry->offset;
+                    txdInfo.m_nCdSize = pTxdEntry->size;
+                    txdInfo.m_nLoadState = LOADSTATE_NOT_LOADED;
+                    txdInfo.m_nFlags = 0;
+                    txdInfo.m_nNextIndex = -1;
+                    txdInfo.m_nPrevIndex = -1;
+                    txdInfo.m_nNextIndexOnCd = -1;
 
-        // Auto-bind any numerical models in this IMG
-        for (const auto& ent : entries) {
-            size_t len = strlen(ent.name);
-            if (len > 4 && !strcasecmp(ent.name + len - 4, ".dff")) {
-                char base[24];
-                strncpy(base, ent.name, len - 4);
-                base[len - 4] = '\0';
-                int id = atoi(base);
-                if (id >= 10000 && id < 20000) {
+                    CBaseModelInfo* pModel = CModelInfo::GetModelInfo(ped.id);
+                    if (pModel) {
+                        pModel->m_nTxdIndex = txdSlot;
+                    }
+
+                    FLog("[4KING] >>> BOUND TXD: ID %d ('%s') -> %s in %s (slot: %d, resource: %d, offset: %u, size: %u)",
+                         ped.id, ped.txdName.c_str(), pTxdEntry->name, imgRelName, txdSlot, txdResourceId, pTxdEntry->offset, pTxdEntry->size);
+                }
+            } else {
+                FLog("[4KING] >>> ERROR: Failed to allocate TXD slot for '%s'", ped.txdName.c_str());
+            }
+        } else {
+            FLog("[4KING] >>> WARNING: TXD not found in IMG for ID %d (tried '%s', '%s')",
+                 ped.id, expectedTxd1, expectedTxd2);
+        }
+    }
+
+    // Auto-bind any numerical models in IMG
+    for (const auto& ent : entries) {
+        size_t len = strlen(ent.name);
+        if (len > 4 && !strcasecmp(ent.name + len - 4, ".dff")) {
+            char base[24];
+            strncpy(base, ent.name, len - 4);
+            base[len - 4] = '\0';
+            int id = atoi(base);
+            if (id >= 10000 && id < 20000) {
+                if (CStreaming::ms_aInfoForModel[id].m_nImgId != imgIndex) {
                     if (CStreaming::ms_aInfoForModel[id].m_nLoadState == LOADSTATE_LOADED) {
                         CStreaming::RemoveModel(id);
                     }
@@ -321,49 +364,14 @@ void BindCustomSkinsFromImg(const char* customIdePath) {
                     info.m_nNextIndex = -1;
                     info.m_nPrevIndex = -1;
                     info.m_nNextIndexOnCd = -1;
-                    FLog("[4KING] >>> AUTO-BOUND Numeric DFF: ID %d -> %s in %s (offset: %u, size: %u)",
-                         id, ent.name, imgRelName, ent.offset, ent.size);
-                    CModelInfo::SetupCustomPedModel(id, base, base);
-                }
-            }
-        }
-    };
-
-    const char* imgRoots[] = {
-        g_pszStorage,
-        "/storage/emulated/0/GTA/",
-        "/storage/emulated/0/",
-        "/sdcard/GTA/",
-        "/storage/emulated/0/Android/data/com.sobad.game/files/",
-        "/storage/emulated/0/Android/data/com.samp.mobile/files/"
-    };
-    const char* imgSubpaths[] = {
-        "SAMP/custom.img",
-        "custom.img",
-        "SAMP/samp.img",
-        "texdb/samp.img"
-    };
-
-    std::vector<std::string> processedImgs;
-    for (const char* sub : imgSubpaths) {
-        for (const char* root : imgRoots) {
-            if (!root || !root[0]) continue;
-            char full[512];
-            snprintf(full, sizeof(full), "%s%s", root, sub);
-            if (access(full, F_OK) == 0) {
-                bool already = false;
-                for (const auto& done : processedImgs) {
-                    if (!strcasecmp(done.c_str(), full)) { already = true; break; }
-                }
-                if (!already) {
-                    processedImgs.push_back(full);
-                    ProcessImg(full, sub);
+                    FLog("[4KING] >>> AUTO-BOUND Numeric DFF: ID %d -> %s (offset: %u, size: %u)",
+                         id, ent.name, ent.offset, ent.size);
                 }
             }
         }
     }
 
-    FLog("[4KING] BindCustomSkinsFromImg completed!");
+    FLog("[4KING] BindCustomSkinsFromImg finished successfully!");
 }
 
 void CGame::Initialize()
@@ -376,24 +384,12 @@ void CGame::Initialize()
     szGameTextMessage = new uint16_t[1076];
 
     // [4KING] Auto-load custom.ide (PC compatibility for skins like 16001/16002)
-    char customIdePath[512] = {0};
-    const char* ideRoots[] = {
-        g_pszStorage,
-        "/storage/emulated/0/GTA/",
-        "/storage/emulated/0/",
-        "/sdcard/GTA/",
-        "/storage/emulated/0/Android/data/com.sobad.game/files/",
-        "/storage/emulated/0/Android/data/com.samp.mobile/files/"
-    };
-    for (const char* root : ideRoots) {
-        if (!root || !root[0]) continue;
-        char t1[512], t2[512];
-        snprintf(t1, sizeof(t1), "%sSAMP/custom.ide", root);
-        snprintf(t2, sizeof(t2), "%scustom.ide", root);
-        if (access(t1, F_OK) == 0) { strncpy(customIdePath, t1, sizeof(customIdePath) - 1); break; }
-        if (access(t2, F_OK) == 0) { strncpy(customIdePath, t2, sizeof(customIdePath) - 1); break; }
+    char customIdePath[512];
+    snprintf(customIdePath, sizeof(customIdePath), "%sSAMP/custom.ide", g_pszStorage);
+    if (access(customIdePath, F_OK) != 0) {
+        snprintf(customIdePath, sizeof(customIdePath), "%scustom.ide", g_pszStorage);
     }
-    if (customIdePath[0]) {
+    if (access(customIdePath, F_OK) == 0) {
         FLog("[4KING] Auto-loading custom IDE: %s", customIdePath);
         size_t pedCountBefore = CModelInfo::ms_pedModelInfoStore.m_nCount;
         ((void(*)(const char*))(g_libGTASA + (VER_x32 ? 0x0046717C + 1 : 0x5525ac)))("SAMP/custom.ide");
@@ -499,27 +495,6 @@ void CGame::PreloadObjectsAnims()
 	if(IsAnimationLoaded("RUNNINGMAN") == 0) RequestAnimation("RUNNINGMAN");
 	if(IsAnimationLoaded("STRIP") == 0) RequestAnimation("STRIP");
 	if(IsAnimationLoaded("WOP") == 0) RequestAnimation("WOP");
-
-	// sync combat, melee, prone, knockdown & essential animations
-	if(IsAnimationLoaded("CRACK") == 0) RequestAnimation("CRACK");
-	if(IsAnimationLoaded("SWEET") == 0) RequestAnimation("SWEET");
-	if(IsAnimationLoaded("PED") == 0) RequestAnimation("PED");
-	if(IsAnimationLoaded("FIGHT_B") == 0) RequestAnimation("FIGHT_B");
-	if(IsAnimationLoaded("FIGHT_C") == 0) RequestAnimation("FIGHT_C");
-	if(IsAnimationLoaded("FIGHT_D") == 0) RequestAnimation("FIGHT_D");
-	if(IsAnimationLoaded("GYMNASIUM") == 0) RequestAnimation("GYMNASIUM");
-	if(IsAnimationLoaded("KNIFE") == 0) RequestAnimation("KNIFE");
-	if(IsAnimationLoaded("CARRY") == 0) RequestAnimation("CARRY");
-	if(IsAnimationLoaded("MEDIC") == 0) RequestAnimation("MEDIC");
-	if(IsAnimationLoaded("BEACH") == 0) RequestAnimation("BEACH");
-	if(IsAnimationLoaded("SUNBATHE") == 0) RequestAnimation("SUNBATHE");
-	if(IsAnimationLoaded("INT_HOUSE") == 0) RequestAnimation("INT_HOUSE");
-	if(IsAnimationLoaded("BASEBALL") == 0) RequestAnimation("BASEBALL");
-	if(IsAnimationLoaded("SWORD") == 0) RequestAnimation("SWORD");
-	if(IsAnimationLoaded("CHAINSAW") == 0) RequestAnimation("CHAINSAW");
-	if(IsAnimationLoaded("FIGHT_E") == 0) RequestAnimation("FIGHT_E");
-	if(IsAnimationLoaded("DILDO") == 0) RequestAnimation("DILDO");
-	if(IsAnimationLoaded("FLOWERS") == 0) RequestAnimation("FLOWERS");
 }
 // 0.3.7
 void CGame::SetWorldWeather(int byteWeatherID)
@@ -666,7 +641,7 @@ uint32_t CGame::CreatePickup(int iModel, int iType, float x, float y, float z, i
 
     auto dwModelArray = CModelInfo::ms_modelInfoPtrs;
     if(dwModelArray[iModel] == nullptr)
-        iModel = 18631; // Ð²Ð¾Ð¿ÑÐ¾ÑÐ¸Ðº
+        iModel = 18631; // вопросик
 
     ScriptCommand(&create_pickup, iModel, iType, x, y, z, &hnd);
 
@@ -717,13 +692,13 @@ void CGame::RemoveModel(int iModel, bool bFromStreaming)
 		}
 	}
 }
-// 0.3.7 (ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ 2 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ 0.3DL)
+// 0.3.7 (������������ 2 ��������� ��������� ��������� � 0.3DL)
 CObject* CGame::NewObject(int iModel, CVector vecPos, CVector vecRot, float fDrawDistance)
 {
 	CObject *pObjectNew = new CObject(iModel, vecPos, vecRot, fDrawDistance, 0);
 	return pObjectNew;
 }
-// 0.3.7 (ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ bIsNPC)
+// 0.3.7 (�� ����������� ������ bIsNPC)
 CPlayerPed* CGame::NewPlayer(int iSkin, float fX, float fY, float fZ, float fRotation, bool unk, bool bIsNPC)
 {
 	uint8_t bytePedSlot = FindFirstFreePlayerPedSlot();
@@ -963,7 +938,7 @@ void CGame::ToggleCJWalk(bool bUseCJWalk)
 
 void CGame::InitialiseOnceBeforeRW() {
     CMemoryMgr::Init();
-    CHook::CallFunction<void>("_ZN14MobileSettings10InitializeEv"); // Ð²Ð¿Ð°Ð´Ð»Ñ ÑÐµÐ²ÐµÑÑÐ¸ÑÑ Ñ.Ðº. Ð¼ÐµÐ½Ñ Ð½Ð°Ð´Ð¾ Ð²Ð¾Ð¾Ð±ÑÐµ ÑÐ´Ð°Ð»Ð¸ÑÑ
+    CHook::CallFunction<void>("_ZN14MobileSettings10InitializeEv"); // впадлу реверсить т.к. меню надо вообще удалить
     CHook::CallFunction<void>("_ZN13CLocalisation10InitialiseEv");
     CFileMgr::Initialise();
     CdStreamInit(TOTAL_IMG_ARCHIVES); // mb use TOTAL_IMG_ARCHIVES?
@@ -1185,7 +1160,7 @@ void CGame::Process() {
         ((void (*)(uintptr_t *)) (g_libGTASA + (VER_x32 ? 0x003F1628 + 1 : 0x4D361C)))(gFireManager); // CFireManager::Update
 
         // FIXME: add if
-        ((void(*)(bool))(g_libGTASA + (VER_x32 ? 0x004CC380 + 1 : 0x5CB5E0)))(false); // CPopulation::Update Ð½ÑÐ¶Ð½Ð¾ (
+        ((void(*)(bool))(g_libGTASA + (VER_x32 ? 0x004CC380 + 1 : 0x5CB5E0)))(false); // CPopulation::Update нужно (
 
         ((void (*)()) (g_libGTASA + (VER_x32 ? 0x005DB8E8 + 1 : 0x700AF4)))(); // CWeapon::UpdateWeapons()
 //		if ( !CCutsceneMgr::ms_running )
@@ -1218,7 +1193,7 @@ void CGame::Process() {
 
         ((void (*)(CCamera*)) (g_libGTASA + (VER_x32 ? 0x003DC7D0 + 1 : 0x4BAB78)))(&TheCamera); // CCamera::Process()
 
-        // CCullZones::Update() Ð¼ÐµÐ½ÑÑ Ð½Ðµ Ð¼Ð¾Ð³ÑÑ Ð½Ð°Ð¹ÑÐ¸?
+        // CCullZones::Update() менты не могут найти?
         CHook::CallFunction<void>(g_libGTASA+(VER_x32 ? 0x307D8C+1:0x3CD630));// CGameLogic::Update()
         // CGangWars::Update();
         // CConversations::Update()

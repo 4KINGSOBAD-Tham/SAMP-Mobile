@@ -46,6 +46,4 @@ public:
     bool IsReleased(CVector2D *pVecOut);
     bool IsTouched(CVector2D *pVecOut);
 };
-bool IsAttackWidgetTouched();
 VALIDATE_SIZE(CWidgetGta, (VER_x32 ? 0x90 : 0xA8));
-

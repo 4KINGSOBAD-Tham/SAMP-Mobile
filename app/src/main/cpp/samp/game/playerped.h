@@ -80,7 +80,7 @@ public:
 	void SatisfyHunger();
 	uint32_t GetCurrentAnimationIndex();
 	bool IsPlayingAnimation(int iIndex);
-	void PlayAnimationFromIndex(int iIndex, float fDelta, int opt1 = 0, int opt2 = 1, int opt3 = 1, int opt4 = 0, int iTime = 0);
+	void PlayAnimationFromIndex(int iIndex, float fDelta);
 	uint8_t GetCurrentWeapon();
 	void SetInitialState();
 	void SetModelIndex(uint uiModel);
@@ -138,7 +138,6 @@ public:
 
 	void SetKeys(uint16_t lrAnalog, uint16_t udAnalog, uint16_t wKeys);
 	uint16_t GetKeys(uint16_t *lrAnalog, uint16_t *udAnalog, bool clear = true);
-	bool IsMeleeAttacking();
 
 	void CheckVehicleParachute();
 	void ProcessVehicleHorn();

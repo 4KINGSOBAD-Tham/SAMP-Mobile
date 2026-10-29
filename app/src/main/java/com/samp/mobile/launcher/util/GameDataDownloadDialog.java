@@ -42,10 +42,10 @@ public class GameDataDownloadDialog {
     public static final String KEY_INSTALLED_MOD_VERSION = "installed_mod_version";
 
     public static final String DATA_DOWNLOAD_URL = "https://github.com/4KINGSOBAD-Tham/SAMP-Mobile/releases/download/v1.0.0/GTA.zip";
-    public static final String DATA_DOWNLOAD_FALLBACK_URL = "https://github.com/4KINGSOBAD-Tham/SAMP-Mobile/releases/download/v1.0.0/GTA.zip";
+    public static final String DATA_DOWNLOAD_FALLBACK_URL = "https://github.com/4KINGSOBAD-Tham/SAMP-Mobile/releases/latest/download/GTA.zip";
 
-    public static final String PATCH_DOWNLOAD_URL = "https://github.com/4KINGSOBAD-Tham/patch-skins/releases/download/v1.0.0/patch.zip";
-    public static final String PATCH_DOWNLOAD_FALLBACK_URL = "https://github.com/4KINGSOBAD-Tham/patch-skins/releases/latest/download/patch.zip";
+    public static final String PATCH_DOWNLOAD_URL = "https://github.com/4KINGSOBAD-Tham/SAMP-Mobile/releases/download/v1.0.0/patch.zip";
+    public static final String PATCH_DOWNLOAD_FALLBACK_URL = "https://github.com/4KINGSOBAD-Tham/SAMP-Mobile/releases/latest/download/patch.zip";
 
     public static final String TARGET_EXTRACT_DIR = "/storage/emulated/0/";
 
@@ -218,16 +218,6 @@ public class GameDataDownloadDialog {
                 unzip(tempZip, targetDir, (fileName, currentCount) -> {
                     updateUI(tvStatusDetail, "กำลังติดตั้ง: " + fileName);
                 });
-                try {
-                    File gtaTarget = new File(TARGET_EXTRACT_DIR, "GTA");
-                    if (gtaTarget.exists()) {
-                        unzip(tempZip, gtaTarget, null);
-                    }
-                    File extDir = activity.getExternalFilesDir(null);
-                    if (extDir != null && extDir.exists()) {
-                        unzip(tempZip, extDir, null);
-                    }
-                } catch (Exception ignored) {}
 
                 tempZip.delete();
 

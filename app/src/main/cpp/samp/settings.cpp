@@ -1,4 +1,4 @@
-#include "main.h"
+﻿#include "main.h"
 #include "settings.h"
 #include "vendor/inih/cpp/INIReader.h"
 

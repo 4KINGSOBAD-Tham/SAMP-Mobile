@@ -14,7 +14,6 @@ extern uintptr_t dwCurPlayerActor;
 
 PAD_KEYS LocalPlayerKeys;
 PAD_KEYS RemotePlayerKeys[PLAYER_PED_SLOTS];
-uint32_t g_dwLastLocalPlayerMeleeAttackTick = 0;
 
 uint16_t(*CPad__GetPedWalkLeftRight)(uintptr_t thiz);
 uint16_t CPad__GetPedWalkLeftRight_hook(uintptr_t thiz)
@@ -22,12 +21,13 @@ uint16_t CPad__GetPedWalkLeftRight_hook(uintptr_t thiz)
 	if (CWorld::PlayerInFocus)
 	{
 		// Remote player
-		int16_t sResult = (int16_t)RemotePlayerKeys[byteCurPlayer].wKeyLR;
-		if (RemotePlayerKeys[byteCurPlayer].bKeys[ePadKeys::KEY_WALK] && sResult != 0)
+		uint16_t dwResult = RemotePlayerKeys[byteCurPlayer].wKeyLR;
+		if ((dwResult == 0xFF80 || dwResult == 0x80) &&
+			RemotePlayerKeys[byteCurPlayer].bKeys[ePadKeys::KEY_WALK])
 		{
-			sResult = (sResult > 0) ? 64 : -64;
+			dwResult = 0x20;
 		}
-		return (uint16_t)sResult;
+		return dwResult;
 	}
 	else
 	{
@@ -43,12 +43,13 @@ uint16_t CPad__GetPedWalkUpDown_hook(uintptr_t thiz)
 	if (CWorld::PlayerInFocus)
 	{
 		// Remote player
-		int16_t sResult = (int16_t)RemotePlayerKeys[byteCurPlayer].wKeyUD;
-		if (RemotePlayerKeys[byteCurPlayer].bKeys[ePadKeys::KEY_WALK] && sResult != 0)
+		uint16_t dwResult = RemotePlayerKeys[byteCurPlayer].wKeyUD;
+		if ((dwResult == 0xFF80 || dwResult == 0x80) &&
+			RemotePlayerKeys[byteCurPlayer].bKeys[ePadKeys::KEY_WALK])
 		{
-			sResult = (sResult > 0) ? 64 : -64;
+			dwResult = 0x20;
 		}
-		return (uint16_t)sResult;
+		return dwResult;
 	}
 	else
 	{
@@ -199,38 +200,21 @@ uint32_t CPad__MeleeAttackJustDown_hook(uintptr_t thiz)
 	else
 	{
 		uint32_t dwResult = CPad__MeleeAttackJustDown(thiz);
-		if (dwResult != 0)
-		{
-			g_dwLastLocalPlayerMeleeAttackTick = GetTickCount();
-		}
-		LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = (dwResult != 0);
+		//LocalPlayerKeys.bKeys[ePadKeys::KEY_HANDBRAKE] = true;
+
+		//if(dwResult == 2) 
+		//{
+		//	LocalPlayerKeys.bKeys[ePadKeys::KEY_SECONDARY_ATTACK] = true;
+		//}
+		//else if(dwResult == 1)
+		//{
+		LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = dwResult;
+		//	LocalPlayerKeys.bKeys[ePadKeys::KEY_HANDBRAKE] = false;
+		//}
+
 		return dwResult;
 	}
 }
-
-uint32_t(*CPad__GetMeleeAttack)(uintptr_t thiz);
-uint32_t CPad__GetMeleeAttack_hook(uintptr_t thiz)
-{
-	if (CWorld::PlayerInFocus)
-	{
-		if (RemotePlayerKeys[byteCurPlayer].bKeys[ePadKeys::KEY_HANDBRAKE] &&
-			RemotePlayerKeys[byteCurPlayer].bKeys[ePadKeys::KEY_SECONDARY_ATTACK])
-			return 2;
-
-		return RemotePlayerKeys[byteCurPlayer].bKeys[ePadKeys::KEY_FIRE];
-	}
-	else
-	{
-		uint32_t dwResult = CPad__GetMeleeAttack(thiz);
-		if (dwResult != 0)
-		{
-			g_dwLastLocalPlayerMeleeAttackTick = GetTickCount();
-		}
-		LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = (dwResult != 0);
-		return dwResult;
-	}
-}
-
 
 uint32_t(*CPad__GetBlock)(uintptr_t thiz);
 uint32_t CPad__GetBlock_hook(uintptr_t thiz)
@@ -502,13 +486,8 @@ bool CPad__GetWeapon_hook(uintptr_t thiz, CPedGTA* pPed)
 	}
 	else
 	{
-		bool bResult = CPad__GetWeapon(thiz, pPed);
-		if (bResult)
-		{
-			g_dwLastLocalPlayerMeleeAttackTick = GetTickCount();
-		}
-		LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = bResult;
-		return bResult;
+		LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE] = CPad__GetWeapon(thiz, pPed);
+		return LocalPlayerKeys.bKeys[ePadKeys::KEY_FIRE];
 	}
 }
 
@@ -1011,7 +990,6 @@ void HookCPad()
     CHook::InlineHook("_ZN4CPad16SwimJumpJustDownEv", &CPad__SwimJumpJustDown_hook, &CPad__SwimJumpJustDown);
 
     CHook::InlineHook("_ZN4CPad19MeleeAttackJustDownEv", &CPad__MeleeAttackJustDown_hook, &CPad__MeleeAttackJustDown);
-    CHook::InlineHook("_ZN4CPad14GetMeleeAttackEv", &CPad__GetMeleeAttack_hook, &CPad__GetMeleeAttack);
     CHook::InlineHook("_ZN4CPad12DuckJustDownEP4CPed", &CPad__DuckJustDown_hook, &CPad__DuckJustDown);
     CHook::InlineHook("_ZN4CPad8GetBlockEv", &CPad__GetBlock_hook, &CPad__GetBlock);
 

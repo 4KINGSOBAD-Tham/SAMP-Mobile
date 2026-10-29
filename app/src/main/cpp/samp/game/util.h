@@ -44,7 +44,6 @@ void SetPlayerPedPtrRecord(uint8_t bytePlayer, CPedGTA* pPed);
 uint8_t FindPlayerNumFromPedPtr(CPedGTA* dwPedPtr);
 
 int GameGetWeaponModelIDFromWeaponID(int iWeaponID);
-float GetWeaponDamage(uint8_t weaponId);
 
 int GetFreeTextDrawTextureSlot();
 void ResetTextDrawTextures();

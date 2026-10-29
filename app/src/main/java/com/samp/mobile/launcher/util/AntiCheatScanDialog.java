@@ -40,7 +40,7 @@ import java.util.concurrent.Executors;
 public class AntiCheatScanDialog {
     private static final String TAG = "AntiCheatScan";
 
-    public static final String REMOTE_CONFIG_URL = "https://raw.githubusercontent.com/4KINGSOBAD-Tham/patch-skins/main/security.json";
+    public static final String REMOTE_CONFIG_URL = "https://raw.githubusercontent.com/4KINGSOBAD-Tham/SAMP-Mobile/main/security.json";
     private static final String GAME_STORAGE_DIR = "/storage/emulated/0/GTA";
 
     private static final ExecutorService executor = Executors.newSingleThreadExecutor();

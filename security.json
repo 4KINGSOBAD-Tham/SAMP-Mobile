@@ -1,44 +1,31 @@
-{
+﻿{
   "version": 1,
-  "enable_anticheat": true,
+  "enable_anticheat": false,
   "server": {
-    "name": "[TH] 4KING ROLEPLAY",
+    "name": "ChitChat Town Roleplay",
     "ip": "192.168.1.114",
     "port": 7777,
     "online": true,
-    "offline_message": "ปิดปรับปรุงเซิร์ฟเวอร์ชั่วคราว"
+    "offline_message": "เธเธดเธ”เธเธฃเธฑเธเธเธฃเธธเธเธเธฑเนเธงเธเธฃเธฒเธง"
   },
   "announcement": {
     "enabled": true,
-    "text": "📢 ยินดีต้อนรับสู่ 4KING SOBAD ROLEPLAY! 🔥 ห้ามใช้โปรแกรมโกงเด็ดขาด ระบบ Anti-Cheat 4KING ตรวจจับอัตโนมัติ 👑 กิจกรรมคูณ 2 EXP ทุกวันเสาร์-อาทิตย์!"
+    "text": "โจ เธขเธดเธเธ”เธตเธ•เนเธญเธเธฃเธฑเธเธชเธนเน ChitChat Town Roleplay! เน€เธเธดเธฃเนเธเน€เธงเธญเธฃเนเน€เธเธดเธ”เนเธซเนเธเธฃเธดเธเธฒเธฃเนเธฅเนเธง เน€เธเนเธฒเธกเธฒเธชเธเธธเธเธเธฑเธเนเธ”เนเน€เธฅเธข! ๐ฎ"
   },
   "blacklist_extensions": [
     ".csa",
     ".csi"
   ],
-  "blacklist_keywords": [
-    "airbreak",
-    "ultrafuck",
-    "aimbot",
-    "speedhack",
-    "cheat",
-    "sobit",
-    "damager",
-    "autocb",
-    "flyhack"
-  ],
+  "blacklist_keywords": [],
   "whitelist_lua": [
     "4king_bridge.lua"
   ],
-  "protected_hashes": {
-    "data/handling.cfg": "1309562B6CC6FB0C9983190383E62DED03D033F42EB1BF8F6B858CB93073E22F",
-    "data/weapon.dat": "3AF1D40AA8EFA67223A8160FADB0749DC9E920DBC94579C55F9F1826A47B27CE"
-  },
+  "protected_hashes": {},
   "mod_patch": {
     "version": 1,
-    "required": true,
-    "url": "https://github.com/4KINGSOBAD-Tham/SAMP-Mobile/releases/download/v1.0.0/patch.zip",
-    "fallback_url": "https://github.com/4KINGSOBAD-Tham/SAMP-Mobile/releases/latest/download/patch.zip",
-    "description": "อัปเดตสกินและม็อดเซิร์ฟเวอร์ 4KING"
+    "required": false,
+    "url": "",
+    "fallback_url": "",
+    "description": "เนเธกเนเธกเธตเธเธฒเธฃเธญเธฑเธเน€เธ”เธ•เธกเธญเธ”"
   }
 }

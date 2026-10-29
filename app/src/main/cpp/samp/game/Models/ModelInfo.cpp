@@ -19,55 +19,6 @@ CVehicleModelInfo* CModelInfo::AddVehicleModel(int index)
     CModelInfo::SetModelInfo(index, &pInfo);
     return &pInfo;
 }
-CPedModelInfo* CModelInfo::SetupCustomPedModel(int id, const char* modelName, const char* txdName)
-{
-    if (id < 0 || id >= NUM_MODEL_INFOS) return nullptr;
-
-    uintptr_t pedVtable = g_libGTASA + (VER_x32 ? 0x00667658 : 0x82F310);
-    CBaseModelInfo* pExisting = CModelInfo::GetModelInfo(id);
-    CPedModelInfo* pPedInfo = nullptr;
-
-    if (pExisting && *(uintptr_t*)pExisting == pedVtable) {
-        pPedInfo = (CPedModelInfo*)pExisting;
-    } else {
-        pPedInfo = CModelInfo::AddPedModel(id);
-    }
-
-    if (!pPedInfo) return nullptr;
-
-    pPedInfo->vtable = pedVtable;
-
-    // Clone templates from Ped 0 (CJ) to guarantee valid bones, hierarchy & collision
-    CPedModelInfo* pBasePed = (CPedModelInfo*)CModelInfo::GetModelInfo(0);
-    if (pBasePed) {
-        pPedInfo->m_pColModel = pBasePed->m_pColModel;
-        pPedInfo->m_pHitColModel = pBasePed->m_pHitColModel;
-        pPedInfo->m_nAnimType = 0; // "man"
-        pPedInfo->m_dwAnimFileIndex = (uintptr_t)-1;
-        pPedInfo->m_nPedType = pBasePed->m_nPedType;
-        pPedInfo->m_nStatType = 0; // STAT_STD_MISSION
-        pPedInfo->m_nCarsCanDriveMask = 0x1FFF;
-        pPedInfo->m_nPedFlags = 0;
-        pPedInfo->m_fDrawDistance = 50.0f;
-    }
-
-    if (modelName && modelName[0]) {
-        pPedInfo->SetModelName(modelName);
-    } else {
-        char defaultName[24];
-        snprintf(defaultName, sizeof(defaultName), "%d", id);
-        pPedInfo->SetModelName(defaultName);
-    }
-
-    const char* txd = (txdName && txdName[0]) ? txdName : (modelName && modelName[0] ? modelName : "");
-    if (txd[0]) {
-        pPedInfo->SetTexDictionary(txd, nullptr);
-    }
-
-    CModelInfo::SetModelInfo(id, pPedInfo);
-    return pPedInfo;
-}
-
 
 CPedModelInfo* CModelInfo::AddPedModel(int index)
 {

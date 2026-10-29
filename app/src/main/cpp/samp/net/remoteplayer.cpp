@@ -72,11 +72,12 @@ void CRemotePlayer::Process()
 			// UPDATE CURRENT WEAPON
 			uint8_t byteCurrentWeapon = m_ofSync.byteCurrentWeapon & 0x3F;
 			if (m_pPlayerPed->m_pPed->IsAdded() && m_pPlayerPed->GetCurrentWeapon() != byteCurrentWeapon) {
-				if (byteCurrentWeapon == 0) {
-					m_pPlayerPed->SetArmedWeapon(0, false);
-				} else {
+				//m_pPlayerPed->SetArmedWeapon(byteCurrentWeapon, false);
+
+				// double check
+				if (m_pPlayerPed->GetCurrentWeapon() != byteCurrentWeapon) {
 					m_pPlayerPed->GiveWeapon(byteCurrentWeapon, 9999);
-					m_pPlayerPed->SetArmedWeapon(byteCurrentWeapon, false);
+					//m_pPlayerPed->SetArmedWeapon(byteCurrentWeapon, false);
 				}
 			}
 
@@ -89,7 +90,7 @@ void CRemotePlayer::Process()
 			}
 			else
 			{
-				ProcessAnimation();
+				//ProcessAnimation();
 				m_pPlayerPed->SetActionTrigger(ACTION_NORMAL);
 			}
 
@@ -148,9 +149,9 @@ void CRemotePlayer::Process()
 			uint8_t byteCurWeapon = m_icSync.byteCurrentWeapon & 0x3F;
 			if (m_pPlayerPed->GetCurrentWeapon() != byteCurWeapon)
 			{
-				if (byteCurWeapon == 0) {
-					m_pPlayerPed->SetArmedWeapon(0, false);
-				} else {
+				m_pPlayerPed->SetArmedWeapon(byteCurWeapon, false);
+				if (m_pPlayerPed->GetCurrentWeapon() != byteCurWeapon)
+				{
 					m_pPlayerPed->GiveWeapon(byteCurWeapon, 9999);
 					m_pPlayerPed->SetArmedWeapon(byteCurWeapon, false);
 				}
@@ -169,9 +170,9 @@ void CRemotePlayer::Process()
 			uint8_t byteCurrentWeapon = m_psSync.byteCurrentWeapon & 0x3F;
 			if(m_pPlayerPed->m_pPed->IsAdded() && m_pPlayerPed->GetCurrentWeapon() != byteCurrentWeapon)
 			{
-				if (byteCurrentWeapon == 0) {
-					m_pPlayerPed->SetArmedWeapon(0, 0);
-				} else {
+				m_pPlayerPed->SetArmedWeapon(byteCurrentWeapon, 0);
+				if(m_pPlayerPed->GetCurrentWeapon() != byteCurrentWeapon)
+				{
 					m_pPlayerPed->GiveWeapon(byteCurrentWeapon, 9999);
 					m_pPlayerPed->SetArmedWeapon(byteCurrentWeapon, 0);
 				}
@@ -183,7 +184,6 @@ void CRemotePlayer::Process()
 		// ------ PROCESSED FOR ALL FRAMES ----- 
 		if (GetState() == PLAYER_STATE_ONFOOT && !m_pPlayerPed->IsInVehicle())
 		{
-			UpdateOnFootTargetPosition();
 			InterpolateAndRotate();
 			//SyncHead();
 			m_bPassengerDriveByMode = false;
@@ -374,7 +374,7 @@ void CRemotePlayer::InterpolateAndRotate()
 // 0.3.7
 void CRemotePlayer::UpdateOnFootTargetPosition()
 {
-	if(!m_pPlayerPed || !m_pPlayerPed->m_pPed) return;
+	if(!m_pPlayerPed) return;
 
 	RwMatrix matPlayer = m_pPlayerPed->m_pPed->GetMatrix().ToRwMatrix();
 
@@ -384,27 +384,9 @@ void CRemotePlayer::UpdateOnFootTargetPosition()
 		m_vecPosOffset.y = FloatOffset(m_vecOnFootTargetPos.y, matPlayer.pos.y);
 		m_vecPosOffset.z = FloatOffset(m_vecOnFootTargetPos.z, matPlayer.pos.z);
 
-		// If remote player is stationary or attacking in place (zero move speed from network):
-		if (m_ofSync.vecMoveSpeed.x == 0.0f && m_ofSync.vecMoveSpeed.y == 0.0f)
-		{
-			if (m_vecPosOffset.x > 0.01f || m_vecPosOffset.y > 0.01f)
-			{
-				matPlayer.pos.x = m_vecOnFootTargetPos.x;
-				matPlayer.pos.y = m_vecOnFootTargetPos.y;
-				if (m_vecPosOffset.z > 0.15f)
-				{
-					matPlayer.pos.z = m_vecOnFootTargetPos.z;
-				}
-				m_pPlayerPed->m_pPed->SetMatrix((CMatrix&)matPlayer);
-				m_pPlayerPed->m_pPed->SetVelocity(CVector(0.0f, 0.0f, 0.0f));
-			}
-			return;
-		}
-
 		if(m_vecPosOffset.x > 0.00001f || m_vecPosOffset.y > 0.00001f || m_vecPosOffset.z > 0.00001f)
 		{
-			// If distance error exceeds 1.0m (melee combat range), snap directly to target
-			if(m_vecPosOffset.x > 1.0f || m_vecPosOffset.y > 1.0f || m_vecPosOffset.z > 0.8f)
+			if(m_vecPosOffset.x > 2.0f || m_vecPosOffset.y > 2.0f || m_vecPosOffset.z > 1.0f)
 			{
 				matPlayer.pos.x = m_vecOnFootTargetPos.x;
 				matPlayer.pos.y = m_vecOnFootTargetPos.y;
@@ -416,11 +398,11 @@ void CRemotePlayer::UpdateOnFootTargetPosition()
 			{
 				CVector vecMoveSpeed = m_pPlayerPed->m_pPed->GetMoveSpeed();
 				if(m_vecPosOffset.x > 0.00001f)
-					vecMoveSpeed.x += (m_vecOnFootTargetPos.x - matPlayer.pos.x) * 0.15f;
+					vecMoveSpeed.x += (m_vecOnFootTargetPos.x - matPlayer.pos.x) * 0.1f;
 				if(m_vecPosOffset.y > 0.00001f)
-					vecMoveSpeed.y += (m_vecOnFootTargetPos.y - matPlayer.pos.y) * 0.15f;
+					vecMoveSpeed.y += (m_vecOnFootTargetPos.y - matPlayer.pos.y) * 0.1f;
 				if(m_vecPosOffset.z > 0.00001f)
-					vecMoveSpeed.z += (m_vecOnFootTargetPos.z - matPlayer.pos.z) * 0.15f;
+					vecMoveSpeed.z += (m_vecOnFootTargetPos.z - matPlayer.pos.z) * 0.1f;
 
 				m_pPlayerPed->m_pPed->SetVelocity(vecMoveSpeed);
 			}
@@ -1000,9 +982,9 @@ void CRemotePlayer::PutInCurrentVehicle()
 			byteCurWeapon = byteCurWeapon & 0x3F;
 			if (m_pPlayerPed->GetCurrentWeapon() != byteCurWeapon)
 			{
-				if (byteCurWeapon == 0) {
-					m_pPlayerPed->SetArmedWeapon(0, false);
-				} else {
+				m_pPlayerPed->SetArmedWeapon(byteCurWeapon, false);
+				if (m_pPlayerPed->GetCurrentWeapon() != byteCurWeapon)
+				{
 					m_pPlayerPed->GiveWeapon(byteCurWeapon, 9999);
 					m_pPlayerPed->SetArmedWeapon(byteCurWeapon, false);
 				}
@@ -1560,31 +1542,37 @@ void CRemotePlayer::ProcessAnimation()
 		animationData.iValue = m_ofSync.dwAnimation;
 		int flag = m_ofSync.dwAnimation >> 31;
 		if(!flag) {
-			if(animationData.sId == 0)
+			if(animationData.sId < 0)
 			{
 				if(m_bWasAnimSettedFlag)
 				{
 					m_dwPlayingAnimIndex = 0;
-					m_pPlayerPed->ClearAllTasks();
+					m_pPlayerPed->PlayAnimationFromIndex(0, animationData.cFrameDelta);
 					m_bWasAnimSettedFlag = false;
 				}
 			}
 			else
 			{
-				float fDelta = (animationData.cFrameDelta > 0) ? (float)animationData.cFrameDelta : 4.0f;
 				if(m_dwPlayingAnimIndex != animationData.sId)
 				{
 					m_dwPlayingAnimIndex = animationData.sId;
-					m_pPlayerPed->PlayAnimationFromIndex(animationData.sId, fDelta,
-						animationData.cLoopA, animationData.cLoopX, animationData.cLoopY, animationData.cLoopF, 0);
-					m_bWasAnimSettedFlag = true;
+					m_pPlayerPed->PlayAnimationFromIndex(animationData.sId, animationData.cFrameDelta);
 				}
+
+				if(m_dwPlayingAnimIndex)
+				{
+					if(!m_pPlayerPed->IsPlayingAnimation(m_dwPlayingAnimIndex))
+						m_pPlayerPed->PlayAnimationFromIndex(animationData.sId, animationData.cFrameDelta);
+				}
+
+				m_bWasAnimSettedFlag = true;
 			}
 		}
 		if (flag && m_bWasAnimSettedFlag)
 		{
 			m_dwPlayingAnimIndex = 0;
-			m_pPlayerPed->ClearAllTasks();
+			// we have to reset anim
+			m_pPlayerPed->PlayAnimationFromIndex(0, 4.0f);
 			m_bWasAnimSettedFlag = false;
 		}
 	}
