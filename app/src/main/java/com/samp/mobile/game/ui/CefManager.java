@@ -457,6 +457,11 @@ public class CefManager {
                 if (SAMP.getInstance() != null) {
                     SAMP.getInstance().sendChatCommand("/closeinv");
                 }
+            } else if ("cef:closePhone".equals(event) || "phone:close".equals(event)) {
+                hideBrowser();
+                if (SAMP.getInstance() != null) {
+                    SAMP.getInstance().sendChatCommand("/closephone");
+                }
             } else if ("inventory:use".equals(event)) {
                 try {
                     org.json.JSONArray arr = new org.json.JSONArray(jsonArgs);
