@@ -8,6 +8,7 @@ import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.Editable;
+import android.text.InputFilter;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -109,6 +110,17 @@ public class HomeFragment extends Fragment {
         // Load Nickname (Bottom-Left)
         String currentNick = SettingsHelper.getNickName(getContext());
         if (mNicknameEdit != null) {
+            // Block non-ASCII (such as Thai) to prevent RakNet protocol crashes
+            InputFilter asciiFilter = (source, start, end, dest, dstart, dend) -> {
+                for (int i = start; i < end; i++) {
+                    char c = source.charAt(i);
+                    if (c > 127) {
+                        return "";
+                    }
+                }
+                return null;
+            };
+            mNicknameEdit.setFilters(new InputFilter[]{asciiFilter, new InputFilter.LengthFilter(20)});
             mNicknameEdit.setText(currentNick);
             mNicknameEdit.addTextChangedListener(new TextWatcher() {
                 @Override
@@ -161,7 +173,13 @@ public class HomeFragment extends Fragment {
                         mNicknameEdit.requestFocus();
                         return;
                     }
+                    if (!name.matches("^[a-zA-Z0-9_\\[\\]\\$\\.\\=\\(\\)\\@]{3,20}$")) {
+                        Toast.makeText(getContext(), "เธเธทเนเธญเธ•เธฑเธงเธฅเธฐเธเธฃเธ•เนเธญเธเน€เธเนเธเธ เธฒเธฉเธฒเธญเธฑเธเธเธคเธฉเนเธฅเธฐเธ•เธฑเธงเน€เธฅเธเน€เธ—เนเธฒเธเธฑเนเธ (เธซเนเธฒเธกเนเธเนเธ เธฒเธฉเธฒเนเธ—เธข) เน€เธเนเธ Somchai_Jaidee", Toast.LENGTH_LONG).show();
+                        mNicknameEdit.requestFocus();
+                        return;
+                    }
                     SettingsHelper.setNickName(requireContext(), name);
+                    SettingsHelper.setServer(requireContext(), mServerAddress, mServerPort);
                 }
 
                 SAMPServerInfo targetServer = new SAMPServerInfo();
