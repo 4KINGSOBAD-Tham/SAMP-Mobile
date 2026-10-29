@@ -444,7 +444,7 @@ public class CefManager {
                 if (SAMP.getInstance() != null) {
                     SAMP.getInstance().sendChatCommand("/closeschool");
                 }
-            } else if ("cef:closeUI".equals(event) || "cef:onCloseUI".equals(event) || "cef:closeInventory".equals(event)) {
+            } else if ("cef:closeUI".equals(event) || "cef:onCloseUI".equals(event) || "cef:closeInventory".equals(event) || "inventory:close".equals(event)) {
                 if (SAMP.getInstance() != null && SAMP.getInstance().getDialogManager() != null) {
                     mMainHandler.post(new Runnable() {
                         @Override
@@ -456,6 +456,52 @@ public class CefManager {
                 hideBrowser();
                 if (SAMP.getInstance() != null) {
                     SAMP.getInstance().sendChatCommand("/closeinv");
+                }
+            } else if ("inventory:use".equals(event)) {
+                try {
+                    org.json.JSONArray arr = new org.json.JSONArray(jsonArgs);
+                    int slot = arr.getInt(0);
+                    String itemId = arr.getString(1);
+                    if (SAMP.getInstance() != null) {
+                        SAMP.getInstance().sendChatCommand("/cefuseitem " + slot + " " + itemId);
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "inventory:use error", e);
+                }
+            } else if ("inventory:drop".equals(event)) {
+                try {
+                    org.json.JSONArray arr = new org.json.JSONArray(jsonArgs);
+                    int slot = arr.getInt(0);
+                    String itemId = arr.getString(1);
+                    int amount = arr.getInt(2);
+                    if (SAMP.getInstance() != null) {
+                        SAMP.getInstance().sendChatCommand("/cefdropitem " + slot + " " + itemId + " " + amount);
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "inventory:drop error", e);
+                }
+            } else if ("inventory:give".equals(event)) {
+                try {
+                    org.json.JSONArray arr = new org.json.JSONArray(jsonArgs);
+                    int slot = arr.getInt(0);
+                    String itemId = arr.getString(1);
+                    int amount = arr.getInt(2);
+                    if (SAMP.getInstance() != null) {
+                        SAMP.getInstance().sendChatCommand("/cefgiveitem " + slot + " " + itemId + " " + amount);
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "inventory:give error", e);
+                }
+            } else if ("inventory:move".equals(event)) {
+                try {
+                    org.json.JSONArray arr = new org.json.JSONArray(jsonArgs);
+                    int fromSlot = arr.getInt(0);
+                    int toSlot = arr.getInt(1);
+                    if (SAMP.getInstance() != null) {
+                        SAMP.getInstance().sendChatCommand("/cefmoveitem " + fromSlot + " " + toSlot);
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "inventory:move error", e);
                 }
             } else if ("cef:wheelAction".equals(event)) {
                 String action = extractFirstArg(jsonArgs);
