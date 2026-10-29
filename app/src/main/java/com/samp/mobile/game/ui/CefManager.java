@@ -366,24 +366,30 @@ public class CefManager {
             if ("cef:onLoginSubmit".equals(event) || "auth:submit_login".equals(event)) {
                 // Parse password argument from jsonArgs array [ "password" ]
                 final String pass = extractFirstArg(jsonArgs);
-                if (SAMP.getInstance() != null && SAMP.getInstance().getDialogManager() != null) {
-                    mMainHandler.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            SAMP.getInstance().getDialogManager().SendDialogResponseWithId(1, 1100, 0, pass);
-                        }
-                    });
+                if (SAMP.getInstance() != null) {
+                    SAMP.getInstance().sendChatCommand("/ceflogin " + pass);
+                    if (SAMP.getInstance().getDialogManager() != null) {
+                        mMainHandler.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                SAMP.getInstance().getDialogManager().SendDialogResponseWithId(1, 1100, 0, pass);
+                            }
+                        });
+                    }
                 }
                 hideBrowser();
             } else if ("cef:onRegisterSubmit".equals(event) || "auth:submit_register".equals(event)) {
                 final String pass = extractFirstArg(jsonArgs);
-                if (SAMP.getInstance() != null && SAMP.getInstance().getDialogManager() != null) {
-                    mMainHandler.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            SAMP.getInstance().getDialogManager().SendDialogResponseWithId(1, 1101, 0, pass);
-                        }
-                    });
+                if (SAMP.getInstance() != null) {
+                    SAMP.getInstance().sendChatCommand("/cefregister " + pass);
+                    if (SAMP.getInstance().getDialogManager() != null) {
+                        mMainHandler.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                SAMP.getInstance().getDialogManager().SendDialogResponseWithId(1, 1101, 0, pass);
+                            }
+                        });
+                    }
                 }
                 hideBrowser();
             } else if ("cef:selectSchool".equals(event) || "cef:onSelectSchool".equals(event)) {
