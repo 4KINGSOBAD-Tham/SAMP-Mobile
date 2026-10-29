@@ -21,6 +21,9 @@ ButtonPanel::ButtonPanel()
 	m_bWheel = new Button("::", UISettings::fontSize() / 2);
 
 	m_bY->setCallback([]() {
+		if (pNetGame) {
+			pNetGame->SendChatCommand("/cityhub");
+		}
 		LocalPlayerKeys.bKeys[ePadKeys::KEY_YES] = true;
 	});
 
@@ -46,7 +49,7 @@ ButtonPanel::ButtonPanel()
 
 	m_bWheel->setCallback([]() {
 		if (pNetGame) {
-			pNetGame->SendChatCommand("/wheel");
+			pNetGame->SendChatCommand("/cityhub");
 		}
 	});
 
