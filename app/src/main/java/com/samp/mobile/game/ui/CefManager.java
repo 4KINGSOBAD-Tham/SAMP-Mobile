@@ -412,6 +412,22 @@ public class CefManager {
 
     public class CefJavaScriptBridge {
         @JavascriptInterface
+        public void executeCommand(final String cmd) {
+            Log.d(TAG, "CEF executeCommand from JS: " + cmd);
+            if (cmd == null || cmd.trim().isEmpty()) return;
+            if (SAMP.getInstance() != null) {
+                mMainHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        String fullCmd = cmd.trim();
+                        if (!fullCmd.startsWith("/")) fullCmd = "/" + fullCmd;
+                        SAMP.getInstance().sendChatCommand(fullCmd);
+                    }
+                });
+            }
+        }
+
+        @JavascriptInterface
         public void emitEvent(String event, String jsonArgs) {
             Log.d(TAG, "CEF Event from JS: " + event + " Args: " + jsonArgs);
 
@@ -424,19 +440,37 @@ public class CefManager {
             if (event.startsWith("cmd:") || "cef:command".equals(event) || "cef:runCommand".equals(event) || "cef:cmd".equals(event)) {
                 String cmd = event.startsWith("cmd:") ? event.substring(4) : extractFirstArg(jsonArgs);
                 if (SAMP.getInstance() != null && cmd != null && !cmd.trim().isEmpty()) {
-                    String fullCmd = cmd.trim();
-                    if (!fullCmd.startsWith("/")) fullCmd = "/" + fullCmd;
-                    SAMP.getInstance().sendChatCommand(fullCmd);
+                    final String fullCmd = cmd.trim().startsWith("/") ? cmd.trim() : "/" + cmd.trim();
+                    mMainHandler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            SAMP.getInstance().sendChatCommand(fullCmd);
+                        }
+                    });
                 }
                 return;
             }
 
             // 2. Universal Close / Hide UI
-            if (event.endsWith(":close") || event.endsWith("Close") || event.contains("closeUI") || event.contains("hideUI") || "cef:exit".equals(event)) {
+            if (event.endsWith(":close") || event.endsWith("Close") || event.contains("closeUI") || event.contains("hideUI") || "cef:exit".equals(event) || "cef:close".equals(event)) {
                 hideBrowser();
-                String clean = event.replaceAll("(?i)(cef:|on|:|ui|browser)", "").trim().toLowerCase();
-                if (clean.startsWith("close") && clean.length() > 5 && SAMP.getInstance() != null) {
-                    SAMP.getInstance().sendChatCommand("/" + clean);
+                
+                String sys = event;
+                if (sys.contains(":")) {
+                    sys = sys.split(":")[0];
+                } else if (sys.toLowerCase().endsWith("close")) {
+                    sys = sys.substring(0, sys.length() - 5);
+                }
+                sys = sys.replaceAll("[^a-zA-Z0-9]", "").toLowerCase();
+                
+                if (SAMP.getInstance() != null && !sys.isEmpty() && !"cef".equals(sys)) {
+                    final String closeCmd = "/close" + sys;
+                    mMainHandler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            SAMP.getInstance().sendChatCommand(closeCmd);
+                        }
+                    });
                 }
                 return;
             }
