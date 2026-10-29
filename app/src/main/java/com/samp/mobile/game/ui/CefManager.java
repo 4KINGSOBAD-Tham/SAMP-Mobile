@@ -6,6 +6,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 import android.view.View;
+import android.view.MotionEvent;
 import android.view.ViewGroup;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
@@ -32,6 +33,8 @@ public class CefManager {
     private FrameLayout mContainer;
     private WebView mWebView;
     private FrameLayout mNotifyContainer;
+    private FrameLayout mHudContainer;
+    private WebView mHudWebView;
     private View mCurrentToastView = null;
     private Runnable mDismissNotifyRunnable = null;
     private final Handler mMainHandler = new Handler(Looper.getMainLooper());
@@ -112,6 +115,48 @@ public class CefManager {
                         ViewGroup.LayoutParams.MATCH_PARENT
                 ));
 
+                // Dedicated Touch Pass-Through HUD Layer (for FiveM Status HUD)
+                mHudContainer = new FrameLayout(mActivity) {
+                    @Override
+                    public boolean onInterceptTouchEvent(MotionEvent ev) {
+                        return false;
+                    }
+                    @Override
+                    public boolean dispatchTouchEvent(MotionEvent ev) {
+                        return false;
+                    }
+                };
+                mHudContainer.setLayoutParams(new ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                ));
+                mHudContainer.setBackgroundColor(Color.TRANSPARENT);
+                mHudContainer.setVisibility(View.GONE);
+
+                mHudWebView = new WebView(mActivity);
+                mHudWebView.setLayoutParams(new FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.MATCH_PARENT
+                ));
+                mHudWebView.setBackgroundColor(Color.TRANSPARENT);
+                WebSettings hudSettings = mHudWebView.getSettings();
+                hudSettings.setJavaScriptEnabled(true);
+                hudSettings.setDomStorageEnabled(true);
+                hudSettings.setDatabaseEnabled(true);
+                hudSettings.setAllowFileAccess(true);
+                hudSettings.setAllowContentAccess(true);
+                hudSettings.setAllowFileAccessFromFileURLs(true);
+                hudSettings.setAllowUniversalAccessFromFileURLs(true);
+                hudSettings.setLoadsImagesAutomatically(true);
+                hudSettings.setCacheMode(WebSettings.LOAD_NO_CACHE);
+                mHudWebView.setWebViewClient(new WebViewClient());
+                mHudContainer.addView(mHudWebView);
+
+                mActivity.addContentView(mHudContainer, new ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                ));
+
                 mNotifyContainer = new FrameLayout(mActivity);
                 FrameLayout.LayoutParams notifyLp = new FrameLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
@@ -160,6 +205,13 @@ public class CefManager {
         mMainHandler.post(new Runnable() {
             @Override
             public void run() {
+                if (browserId == 5 || (url != null && url.contains("status_hud"))) {
+                    if (mHudContainer != null && mHudWebView != null) {
+                        mHudContainer.setVisibility(View.VISIBLE);
+                        mHudWebView.loadUrl(url);
+                    }
+                    return;
+                }
                 mCurrentBrowserId = browserId;
                 mIsVisible = true;
                 if (mContainer != null) mContainer.setVisibility(View.VISIBLE);
