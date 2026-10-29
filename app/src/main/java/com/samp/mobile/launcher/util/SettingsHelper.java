@@ -1,4 +1,4 @@
-﻿package com.samp.mobile.launcher.util;
+package com.samp.mobile.launcher.util;
 
 import android.content.Context;
 import org.ini4j.Wini;

@@ -1,4 +1,4 @@
-﻿package com.samp.mobile.game.ui;
+package com.samp.mobile.game.ui;
 
 import android.app.Activity;
 import android.graphics.Color;

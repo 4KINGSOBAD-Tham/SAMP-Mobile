@@ -1,4 +1,4 @@
-﻿package com.samp.mobile.launcher.fragments;
+package com.samp.mobile.launcher.fragments;
 
 import android.app.AlertDialog;
 import android.app.Dialog;

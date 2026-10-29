@@ -1,4 +1,4 @@
-﻿package com.samp.mobile.launcher.data;
+package com.samp.mobile.launcher.data;
 
 import android.content.Context;
 import android.os.Environment;
