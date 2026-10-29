@@ -86,6 +86,12 @@ public class CefManager {
 
                 mWebView.setWebViewClient(new WebViewClient() {
                     @Override
+                    public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) {
+                        super.onPageStarted(view, url, favicon);
+                        injectCefPolyfill(view);
+                    }
+
+                    @Override
                     public void onPageFinished(WebView view, String url) {
                         super.onPageFinished(view, url);
                         injectCefPolyfill(view);

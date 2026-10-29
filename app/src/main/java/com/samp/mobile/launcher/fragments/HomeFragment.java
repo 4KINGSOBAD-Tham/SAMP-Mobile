@@ -210,7 +210,7 @@ public class HomeFragment extends Fragment {
             if (mBtnUpdate != null) {
                 mBtnUpdate.setVisibility(View.GONE);
             }
-            mBtnStartGame.setText("เน€เธเนเธฒเน€เธฅเนเธเน€เธเธก");
+            mBtnStartGame.setText("PLAY GAME - เน€เธฃเธดเนเธกเน€เธเธก");
             mBtnStartGame.setEnabled(true);
             mBtnStartGame.setAlpha(1.0f);
         });
