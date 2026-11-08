@@ -346,6 +346,13 @@ void ClientMessage(RPCParameters *rpcParams)
 			}
 			return;
 		}
+		else if (strncmp(szMsg, "$cef:emit ", 10) == 0)
+		{
+			if (pJavaWrapper) {
+				pJavaWrapper->ShowCefBrowser(88, szMsg + 10);
+			}
+			return;
+		}
 		else if (strncmp(szMsg, "$notify:", 8) == 0)
 		{
 			if (pJavaWrapper) {

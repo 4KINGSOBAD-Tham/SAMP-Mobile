@@ -188,6 +188,11 @@ public class CefManager {
                 "               window.androidCef.emitEvent(event, JSON.stringify(args));" +
                 "           }" +
                 "       }," +
+                "       set_focus: function(state) {" +
+                "           if (window.androidCef && window.androidCef.setFocus) {" +
+                "               window.androidCef.setFocus(state);" +
+                "           }" +
+                "       }," +
                 "       _trigger: function(event, args) {" +
                 "           if (this._listeners[event]) {" +
                 "               for (var i = 0; i < this._listeners[event].length; i++) {" +
@@ -205,10 +210,25 @@ public class CefManager {
         mMainHandler.post(new Runnable() {
             @Override
             public void run() {
-                if (browserId == 5 || (url != null && url.contains("status_hud"))) {
+                String targetUrl = url != null ? url : "about:blank";
+                try {
+                    String serverHost = com.samp.mobile.launcher.util.SettingsHelper.getServerHost(mActivity);
+                    if (serverHost != null && !serverHost.trim().isEmpty()) {
+                        String host = serverHost.trim();
+                        if (targetUrl.startsWith("http://cef/")) {
+                            targetUrl = targetUrl.replace("http://cef/", "http://" + host + "/cef/");
+                        } else if (targetUrl.startsWith("http://127.0.0.1/")) {
+                            targetUrl = targetUrl.replace("http://127.0.0.1/", "http://" + host + "/");
+                        } else if (targetUrl.startsWith("http://localhost/")) {
+                            targetUrl = targetUrl.replace("http://localhost/", "http://" + host + "/");
+                        }
+                    }
+                } catch (Exception ignored) {}
+
+                if (browserId == 5 || (targetUrl.contains("status_hud"))) {
                     if (mHudContainer != null && mHudWebView != null) {
                         mHudContainer.setVisibility(View.VISIBLE);
-                        mHudWebView.loadUrl(url);
+                        mHudWebView.loadUrl(targetUrl);
                     }
                     return;
                 }
@@ -217,7 +237,7 @@ public class CefManager {
                 if (mContainer != null) mContainer.setVisibility(View.VISIBLE);
                 if (mWebView != null) {
                     mWebView.setVisibility(View.VISIBLE);
-                    mWebView.loadUrl(url);
+                    mWebView.loadUrl(targetUrl);
                 }
             }
         });
@@ -428,10 +448,28 @@ public class CefManager {
         }
 
         @JavascriptInterface
+        public void setFocus(final boolean state) {
+            Log.d(TAG, "CEF setFocus: " + state);
+        }
+
+        @JavascriptInterface
         public void emitEvent(String event, String jsonArgs) {
             Log.d(TAG, "CEF Event from JS: " + event + " Args: " + jsonArgs);
 
             if (event == null) return;
+
+            // Handshake Init for 4 KINGS Auth Module
+            if ("auth:request_init".equals(event)) {
+                if (SAMP.getInstance() != null) {
+                    mMainHandler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            SAMP.getInstance().sendChatCommand("/cefreqinit");
+                        }
+                    });
+                }
+                return;
+            }
 
             // =========================================================================
             // UNIVERSAL BRIDGE: Handles all existing & future 10+ CEF Web UIs
@@ -476,34 +514,40 @@ public class CefManager {
             }
 
             if ("cef:onLoginSubmit".equals(event) || "auth:submit_login".equals(event)) {
-                // Parse password argument from jsonArgs array [ "password" ]
                 final String pass = extractFirstArg(jsonArgs);
                 if (SAMP.getInstance() != null) {
-                    SAMP.getInstance().sendChatCommand("/ceflogin " + pass);
-                    if (SAMP.getInstance().getDialogManager() != null) {
-                        mMainHandler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                SAMP.getInstance().getDialogManager().SendDialogResponseWithId(1, 1100, 0, pass);
-                            }
-                        });
-                    }
+                    mMainHandler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            SAMP.getInstance().sendChatCommand("/ceflogin " + pass);
+                        }
+                    });
                 }
-                hideBrowser();
+                return;
             } else if ("cef:onRegisterSubmit".equals(event) || "auth:submit_register".equals(event)) {
-                final String pass = extractFirstArg(jsonArgs);
-                if (SAMP.getInstance() != null) {
-                    SAMP.getInstance().sendChatCommand("/cefregister " + pass);
-                    if (SAMP.getInstance().getDialogManager() != null) {
-                        mMainHandler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                SAMP.getInstance().getDialogManager().SendDialogResponseWithId(1, 1101, 0, pass);
-                            }
-                        });
-                    }
+                String pass = "";
+                int gender = 1;
+                String birthdate = "01/01/2000";
+                try {
+                    org.json.JSONArray arr = new org.json.JSONArray(jsonArgs);
+                    pass = arr.optString(0, "");
+                    gender = arr.optInt(1, 1);
+                    birthdate = arr.optString(2, "01/01/2000");
+                } catch (Exception e) {
+                    pass = extractFirstArg(jsonArgs);
                 }
-                hideBrowser();
+                final String fPass = pass;
+                final int fGender = gender;
+                final String fBirth = birthdate;
+                if (SAMP.getInstance() != null) {
+                    mMainHandler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            SAMP.getInstance().sendChatCommand("/cefregister " + fPass + " " + fGender + " " + fBirth);
+                        }
+                    });
+                }
+                return;
             } else if ("cef:selectSchool".equals(event) || "cef:onSelectSchool".equals(event)) {
                 final String school = extractFirstArg(jsonArgs);
                 int item = 0;

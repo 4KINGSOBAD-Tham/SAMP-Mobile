@@ -89,6 +89,13 @@ public class SAMP extends GTASA implements CustomKeyboard.InputListener, HeightP
                         mCefManager.showNotification(url);
                         return;
                     }
+                    if (browserId == 88) {
+                        if (url != null && url.contains("|")) {
+                            String[] p = url.split("\\|", 2);
+                            mCefManager.emitToWeb(p[0], p[1]);
+                        }
+                        return;
+                    }
                     mCefManager.showBrowser(browserId, url);
                 }
             }
