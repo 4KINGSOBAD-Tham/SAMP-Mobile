@@ -264,6 +264,27 @@ public class CefManager {
                 if (mWebView != null && mIsVisible) {
                     String script = String.format("if (window.cef && window.cef._trigger) { window.cef._trigger('%s', %s); }",
                             eventName, jsonArgs);
+                    if ("auth:response".equals(eventName)) {
+                        boolean authenticated;
+                        try {
+                            authenticated = new org.json.JSONArray(jsonArgs).getBoolean(0);
+                        } catch (org.json.JSONException e) {
+                            Log.w(TAG, "Invalid auth response", e);
+                            return;
+                        }
+
+                        if (authenticated) {
+                            final WebView authView = mWebView;
+                            final String authUrl = authView.getUrl();
+                            authView.evaluateJavascript(script, result -> {
+                                if (mIsVisible && mWebView == authView
+                                        && java.util.Objects.equals(authUrl, authView.getUrl())) {
+                                    hideBrowser();
+                                }
+                            });
+                            return;
+                        }
+                    }
                     mWebView.evaluateJavascript(script, null);
                 }
             }
